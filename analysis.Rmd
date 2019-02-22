@@ -202,8 +202,83 @@ transform_data <- function(data) {
 ``` 
 
 
+So let's transform all our old data so it's nice and bucketed.
+```{}
+aao_transformed <- transform_data(aao)
+aas_transformed <- transform_data(aas)
+aaop_transformed <- transform_data(aaop)
+
+eo_transformed <- transform_data(eo)
+ec_transformed <- transform_data(ec)
+es_transformed <- transform_data(es)
+
+uo_transformed <- transform_data(uo)
+uf_transformed <- transform_data(uf)
+ut_transformed <- transform_data(ut)
+```
+
+Now we can test our variances AGAIN but this time with all the buckets in place
+so that we're combining statements that we think are relatively similar, or exemplify the 
+same sort of response.
+```{}
+# extract the scores cause I'm a doofus and haven't done that yet
+aao_scores <- aao_transformed$new_score
+aas_scores <- aas_transformed$new_score
+aaop_scores <- aaop_transformed$new_score
+
+eo_scores <- eo_transformed$new_score
+ec_scores <- ec_transformed$new_score
+es_scores <- es_transformed$new_score
+
+uo_scores <- uo_transformed$new_score
+uf_scores <- uf_transformed$new_score
+ut_scores <- ut_transformed$new_score
+
+```
 
 
+Now compare those bad boys again
+Are within-gesture variances significantly different? 
+AAO:AAOP No
+F = 0.68374, num df = 4, denom df = 4, p-value = 0.7216
+AAO: AAS No
+F = 1.0645, num df = 4, denom df = 4, p-value = 0.9531
+AAS:AAOP No
+F = 0.64228, num df = 4, denom df = 4, p-value = 0.6784
+
+
+EO:EC No
+F = 0.4252, num df = 4, denom df = 4, p-value = 0.4278
+EO:ES No
+F = 0.18232, num df = 4, denom df = 4, p-value = 0.128
+ES:EC No
+F = 2.3322, num df = 4, denom df = 4, p-value = 0.4323
+
+UO:UF No
+F = 1.3896, num df = 4, denom df = 4, p-value = 0.7576
+UO:UT No
+F = 1.4618, num df = 4, denom df = 4, p-value = 0.7219
+UF:UT No
+F = 0.95062, num df = 4, denom df = 4, p-value = 0.962
+```{}
+var.test(aao_scores, aaop_scores, alternative = "two.sided")
+var.test(aao_scores, aas_scores, alternative = "two.sided")
+var.test(aas_scores, aaop_scores, alternative = "two.sided")
+
+var.test(eo_scores, ec_scores, alternative = "two.sided")
+var.test(eo_scores, es_scores, alternative = "two.sided")
+var.test(es_scores, ec_scores, alternative = "two.sided")
+
+var.test(uo_scores, uf_scores, alternative = "two.sided")
+var.test(uo_scores, ut_scores, alternative = "two.sided")
+var.test(ut_scores, uf_scores, alternative = "two.sided")
+
+```
+
+
+Hmm funky, we brought the variances _closer_ together. 
+I suppose that makes sense, because we're giving people less to choose from. Ok I dig this. Let's 
+dig into the specific data and see if one metaphor is more significant than the others. 
 
 
 
