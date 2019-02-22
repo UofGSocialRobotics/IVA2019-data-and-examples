@@ -1,0 +1,209 @@
+---
+title: "IVA2019 Analysis"
+author: "CSaund"
+date: "2/21/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Load these bad larrys
+Annoyingly can't create dynamically named variables in R AFAIK, so manual
+```{r}
+condition_names <- c('aao', 'aas', 'aaop', 'eo','ec','es','uo','uf','ut')
+
+aao <- read.csv('AAO_copy.csv')
+aao_scores <- aao$Score
+aao_sd <- sd(aao_scores)
+
+aas <- read.csv('AAS_copy.csv')
+aas_scores <- aas$Score
+aas_sd <- sd(aas_scores)
+
+aaop <- read.csv('AAOP_copy.csv')
+aaop_scores <- aaop$Score
+aaop_sd <- sd(aaop_scores)
+
+eo <- read.csv('EO_copy.csv')
+eo_scores <- eo$Score
+eo_sd <- sd(eo_scores)
+
+ec <- read.csv('EC_copy.csv')
+ec_scores <- ec$Score
+ec_sd <- sd(ec_scores)
+
+es <- read.csv('ES_copy.csv')
+es_scores <- es$Score
+es_sd <- sd(es_scores)
+
+uo <- read.csv('UO_copy.csv')
+uo_scores <- uo$Score
+uo_sd <- sd(uo_scores)
+
+ut <- read.csv('UT_copy.csv')
+ut_scores <- ut$Score
+ut_sd <- sd(ut_scores)
+
+uf <- read.csv('UF_copy.csv')
+uf_scores <- uf$Score
+uf_sd <- sd(uf_scores)
+
+```
+
+Are within-gesture variances significantly different? 
+AAO:AAOP No
+F = 0.71733, num df = 9, denom df = 9, p-value = 0.6286
+AAO: AAS No
+F = 1.0886, num df = 9, denom df = 9, p-value = 0.9014
+AAS:AAOP No
+F = 0.65892, num df = 9, denom df = 9, p-value = 0.5442
+
+
+EO:EC No
+F = 0.43712, num df = 9, denom df = 9, p-value = 0.2336
+EO:ES Yes
+F = 0.18854, num df = 9, denom df = 9, p-value = 0.02061
+ES:EC No
+F = 2.3184, num df = 9, denom df = 9, p-value = 0.2263
+
+UO:UF No
+F = 1.4853, num df = 9, denom df = 9, p-value = 0.565
+UO:UT No
+F = 1.3844, num df = 9, denom df = 9, p-value = 0.6358
+UF:UT No
+F = 1.0729, num df = 9, denom df = 9, p-value = 0.9182
+
+```{}
+var.test(aao_scores, aaop_scores, alternative = "two.sided")
+var.test(aao_scores, aas_scores, alternative = "two.sided")
+var.test(aas_scores, aaop_scores, alternative = "two.sided")
+
+var.test(eo_scores, ec_scores, alternative = "two.sided")
+var.test(eo_scores, es_scores, alternative = "two.sided")
+var.test(es_scores, ec_scores, alternative = "two.sided")
+
+var.test(uo_scores, uf_scores, alternative = "two.sided")
+var.test(uo_scores, ut_scores, alternative = "two.sided")
+var.test(ut_scores, uf_scores, alternative = "two.sided")
+
+```
+
+Human-interpretable results:
+Largely, the variance within gesture conditions was not statistically significant, 
+disproving our hypothesis that more complex metaphors are more difficult to interpret. 
+
+Now let's bucket the responses and see if our results change. 
+
+First step, collapse responses into metaphor-y responses. 
+1. (Force is conflict) Combine rows for "There is tension between people in the group" and "People in the group disagree with one another"
+2. (Physical closeness is ideological closeness) Combine "People in this group generally get along" and "People in the group are working together to solve a problem"
+3. (Abstract ideas have concrete properties (size)) "She is referring to everybody in the group" and "This group consists of many people"
+4. (Open is accessible) "The speaker likes the people in the group" and "The speaker is open to feedback from the group"
+5. (Being in control is being above) "The speaker is annoyed with the group" and "The speaker is in control of the group"
+
+This means we're gonna have to calculate our own scores
+```{}
+get_scores <- function(data) {
+  scores <- c()
+  for(row in 1:nrow(data)) {
+    total_score = 0
+    for(col in 2:11) {
+      total_score = total_score + data[row,col] * (12 - col)
+    }
+    scores[row] <- (total_score / data[row,12])
+  }
+  return(scores)
+}
+```
+This function does just that -- calculates the scores for each metaphor in a data set. 
+
+Now let's make copies of our data with our bucketed scores
+```{}
+append_scores <- function(data) {
+  scores <- get_scores(data)
+  data$new_score=scores
+  return(data)
+}
+```
+
+
+Great, now that we can actually calculate our own scores and add them to our data, let's add a "group"
+column that actually tells us what the metaphors were in reference to. 
+```{}
+group_by_metaphor <- function(data) {
+  data$group <- ""
+  for(row in 1:nrow(data)) {
+    if (data$Answer.Choices[row] == "People in the group are working together to solve a problem" || 
+        data$Answer.Choices[row] == "People in the group generally get along") {
+      data$group[row] <- "closeness"
+    } else if (data$Answer.Choices[row] == "There is tension between people in the group" || 
+               data$Answer.Choices[row] == "People in the group disagree with one another") {
+      data$group[row] <- "conflict"
+    } else if (data$Answer.Choices[row] == "She is referring to everybody in the group" || 
+               data$Answer.Choices[row] == "This group consists of many people") {
+      data$group[row] <- "size"
+    } else if (data$Answer.Choices[row] == "The speaker likes the people in the group" || 
+               data$Answer.Choices[row] == "The speaker is open to feedback from the group") {
+      data$group[row] <- "open"
+    } else if (data$Answer.Choices[row] == "The speaker is in annoyed with the group" || 
+               data$Answer.Choices[row] == "The speaker is in control of the group") {
+      data$group[row] <- "control"
+    } else {
+      # for some reason it's not recognizing the annoyed case, so let's throw it in the else
+      # cause that seems safe.
+      data$group[row] <- "control"
+    }
+  }
+  return(data)
+}
+```
+
+
+Sweet, now that we have groups, we can combine data by group in order to create our new scores.
+```{}
+bucket_by_group <- function(data) {
+  return (aggregate(list(X1=data$X1, 
+                 X2=data$X2,
+                 X3=data$X3,
+                 X4=data$X4,
+                 X5=data$X5,
+                 X6=data$X6,
+                 X7=data$X7,
+                 X8=data$X8,
+                 X9=data$X9,
+                 X10=data$X10,
+                 Total=data$Total), 
+             by=list(Group=data$group), 
+             FUN=sum))
+}
+```
+Sweet, now instead of dealing with survey statements we're dealing with semantic meaning. 
+
+Let's get those scores going
+```{}
+# Just kidding, we already have the score calculator, just run this! 
+# append_scores(bucketed_data)
+
+```
+
+Just to be clear, this is what we're doing start to finish to get a nice and shiny 
+bucketed dataset with new scores we can then compare variances of, based on the semantic
+meanings and not the actual survey statements
+```{}
+transform_data <- function(data) {
+  transformed_data <- data %>%
+    group_by_metaphor() %>%
+    bucket_by_group() %>%
+    append_scores()
+}
+``` 
+
+
+
+
+
+
+
