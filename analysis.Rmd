@@ -8,7 +8,21 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(ggplot2)
 ```
+
+AA = "available audience"
+E = entity
+U = unpolite
+O = original
+AAOP = AA open
+AAS = AA Small
+ES = E separate
+EC = E control
+UT = U together
+UF = U force
+
+## The Data Loading Section
 
 Load these bad larrys
 Annoyingly can't create dynamically named variables in R AFAIK, so manual
@@ -53,6 +67,8 @@ uf_sd <- sd(uf_scores)
 
 ```
 
+
+### Stats pt1
 Are within-gesture variances significantly different? 
 AAO:AAOP No
 F = 0.71733, num df = 9, denom df = 9, p-value = 0.6286
@@ -76,7 +92,7 @@ F = 1.3844, num df = 9, denom df = 9, p-value = 0.6358
 UF:UT No
 F = 1.0729, num df = 9, denom df = 9, p-value = 0.9182
 
-```{}
+```{r}
 var.test(aao_scores, aaop_scores, alternative = "two.sided")
 var.test(aao_scores, aas_scores, alternative = "two.sided")
 var.test(aas_scores, aaop_scores, alternative = "two.sided")
@@ -95,6 +111,9 @@ Human-interpretable results:
 Largely, the variance within gesture conditions was not statistically significant, 
 disproving our hypothesis that more complex metaphors are more difficult to interpret. 
 
+
+## The Wrangling Section
+
 Now let's bucket the responses and see if our results change. 
 
 First step, collapse responses into metaphor-y responses. 
@@ -105,7 +124,7 @@ First step, collapse responses into metaphor-y responses.
 5. (Being in control is being above) "The speaker is annoyed with the group" and "The speaker is in control of the group"
 
 This means we're gonna have to calculate our own scores
-```{}
+```{r}
 get_scores <- function(data) {
   scores <- c()
   for(row in 1:nrow(data)) {
@@ -121,7 +140,7 @@ get_scores <- function(data) {
 This function does just that -- calculates the scores for each metaphor in a data set. 
 
 Now let's make copies of our data with our bucketed scores
-```{}
+```{r}
 append_scores <- function(data) {
   scores <- get_scores(data)
   data$new_score=scores
@@ -132,7 +151,7 @@ append_scores <- function(data) {
 
 Great, now that we can actually calculate our own scores and add them to our data, let's add a "group"
 column that actually tells us what the metaphors were in reference to. 
-```{}
+```{r}
 group_by_metaphor <- function(data) {
   data$group <- ""
   for(row in 1:nrow(data)) {
@@ -161,9 +180,8 @@ group_by_metaphor <- function(data) {
 }
 ```
 
-
 Sweet, now that we have groups, we can combine data by group in order to create our new scores.
-```{}
+```{r}
 bucket_by_group <- function(data) {
   return (aggregate(list(X1=data$X1, 
                  X2=data$X2,
@@ -183,7 +201,7 @@ bucket_by_group <- function(data) {
 Sweet, now instead of dealing with survey statements we're dealing with semantic meaning. 
 
 Let's get those scores going
-```{}
+```{r}
 # Just kidding, we already have the score calculator, just run this! 
 # append_scores(bucketed_data)
 
@@ -192,7 +210,7 @@ Let's get those scores going
 Just to be clear, this is what we're doing start to finish to get a nice and shiny 
 bucketed dataset with new scores we can then compare variances of, based on the semantic
 meanings and not the actual survey statements
-```{}
+```{r}
 transform_data <- function(data) {
   transformed_data <- data %>%
     group_by_metaphor() %>%
@@ -202,25 +220,73 @@ transform_data <- function(data) {
 ``` 
 
 
-So let's transform all our old data so it's nice and bucketed.
-```{}
+So let's transform all our old data so it's nice and bucketed, and sorted by score
+```{r}
 aao_transformed <- transform_data(aao)
+aao_transformed <- aao_transformed[rev(order(aao_transformed$new_score)),]
 aas_transformed <- transform_data(aas)
+aas_transformed <- aas_transformed[rev(order(aas_transformed$new_score)),]
 aaop_transformed <- transform_data(aaop)
+aaop_transformed <- aaop_transformed[rev(order(aaop_transformed$new_score)),]
 
 eo_transformed <- transform_data(eo)
+eo_transformed <- eo_transformed[rev(order(eo_transformed$new_score)),]
 ec_transformed <- transform_data(ec)
+ec_transformed <- ec_transformed[rev(order(ec_transformed$new_score)),]
 es_transformed <- transform_data(es)
+es_transformed <- es_transformed[rev(order(es_transformed$new_score)),]
 
 uo_transformed <- transform_data(uo)
+uo_transformed <- uo_transformed[rev(order(uo_transformed$new_score)),]
 uf_transformed <- transform_data(uf)
+uf_transformed <- uf_transformed[rev(order(uf_transformed$new_score)),]
 ut_transformed <- transform_data(ut)
+ut_transformed <- ut_transformed[rev(order(ut_transformed$new_score)),]
 ```
 
+
+Let's do ourselves a favor and put these next to each other, so we have one table per
+gesture, as opposed to 3. There is *for sure* a nicer way to do this but this is quick and dirty.
+I'm sorry for what I've done.
+```{r}
+
+summarise_gesture <- function(orig_data, 
+                              manip1, manip1_name="manip1_score", 
+                              manip2, manip2_name="manip2_score") {
+  # drop columns we don't care about
+  keep = c("Group", "new_score")
+  orig_no_raw <- orig_data[keep] 
+  colnames(orig_no_raw)[2] <- "original_score"
+  
+  manip1_no_raw <- manip1[keep]
+  colnames(manip1_no_raw)[2] <- manip1_name
+  
+  manip2_no_raw <- manip2[keep]
+  colnames(manip2_no_raw)[2] <- manip2_name
+  
+  summary_table <- left_join(orig_no_raw, manip1_no_raw, by="Group") %>%
+    left_join(manip2_no_raw, by="Group")
+}
+
+aa_summary <- summarise_gesture(aao_transformed, 
+                                aas_transformed, "small_score",
+                                aaop_transformed, "open_score")
+                                
+entity_summary <- summarise_gesture(eo_transformed, 
+                                es_transformed, "separate_score",
+                                ec_transformed, "control_score")
+                                
+unpolite_summary <- summarise_gesture(uo_transformed, 
+                                ut_transformed, "together_score",
+                                uf_transformed, "force_score")
+```
+
+
+## The Stats Section pt2
 Now we can test our variances AGAIN but this time with all the buckets in place
 so that we're combining statements that we think are relatively similar, or exemplify the 
 same sort of response.
-```{}
+```{r}
 # extract the scores cause I'm a doofus and haven't done that yet
 aao_scores <- aao_transformed$new_score
 aas_scores <- aas_transformed$new_score
@@ -260,7 +326,7 @@ UO:UT No
 F = 1.4618, num df = 4, denom df = 4, p-value = 0.7219
 UF:UT No
 F = 0.95062, num df = 4, denom df = 4, p-value = 0.962
-```{}
+```{r}
 var.test(aao_scores, aaop_scores, alternative = "two.sided")
 var.test(aao_scores, aas_scores, alternative = "two.sided")
 var.test(aas_scores, aaop_scores, alternative = "two.sided")
@@ -277,8 +343,188 @@ var.test(ut_scores, uf_scores, alternative = "two.sided")
 
 
 Hmm funky, we brought the variances _closer_ together. 
-I suppose that makes sense, because we're giving people less to choose from. Ok I dig this. Let's 
-dig into the specific data and see if one metaphor is more significant than the others. 
+I suppose that makes sense, because we're giving people less to choose from. 
+
+In the AA case, AAO has much lower variance in scores. This actually makes more sense becuase 
+with more obviously different metaphors, there will be obvious front-runners and obvious
+not-at-play metaphors, so the original (more complex, more metaphor, more potentially ambiguous)
+gesture will show less of a clear pattern.
+
+As an aside, seems overall like 'size' is really mucking up the data. I'm thinking let's try to JUST analyze the metaphors we're interested in for each example. We can explore that later.
+
+Let's dig into the specific data and see if one metaphor is more significant than the others. 
+Transpose and run an ANOVA
+```{r}
+# don't fuck it up
+u_test <- unpolite_summary
+# ugh transpose our dataframes
+n <- u_test$Group
+
+# transpose all but first column (group)
+u_test <- as.data.frame(t(u_test[,-1]))
+colnames(u_test) <- n
+u_test$Group <- factor(row.names(u_test))
+```
+
+Now let's run the ANOVA
+```{r}
+u.mod1 = lm(original_score ~ Group, data = unpolite_summary)
+res <- aov(conflict ~ Group, data=u_test)
+
+```
+
+## The Box Plot Section. 
+
+convert ranking scores to weighted ranking scores
+also make sure we have things to make our plot look nice
+```{r}
+scale_scores <- function(data) {
+  data$X1 <- data$X1 * 10
+  data$X2 <- data$X2 * 9
+  data$X3 <- data$X3 * 8
+  data$X4 <- data$X4 * 7
+  data$X5 <- data$X5 * 6
+  data$X6 <- data$X6 * 5
+  data$X7 <- data$X7 * 4
+  data$X8 <- data$X8 * 3
+  data$X9 <- data$X9 * 2
+  data$X10 <- data$X10 * 1
+  return(data)
+}
+
+# define the summary function to describe our stats the way we want
+f <- function(x) {
+  r <- quantile(x, probs = c(0.25, 0.5, 0.75, 0.999, 0.99999))
+  names(r) <- c("ymin", "lower", "middle", "upper", "ymax")
+  r
+}
+
+```
+
+
+Convert our data to make it box-plottable
+```{r}
+# Unpolite
+# scale all the scores
+uo_scaled <- scale_scores(uo_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+ut_scaled <- scale_scores(ut_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+uf_scaled <- scale_scores(uf_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+
+# name it up nice
+uo_scaled$metaphor <- "original"
+ut_scaled$metaphor <- "together"
+uf_scaled$metaphor <- "forced"
+
+#concat the datasets
+total_unpolite <- rbind(uo_scaled, ut_scaled, uf_scaled)
+
+
+# Available Audience
+# scale all the scores
+aao_scaled <- scale_scores(aao_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+aas_scaled <- scale_scores(aas_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+aaop_scaled <- scale_scores(aaop_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+
+# name it up nice
+aao_scaled$metaphor <- "original"
+aas_scaled$metaphor <- "small"
+aaop_scaled$metaphor <- "open"
+
+#concat the datasets
+total_audience <- rbind(aao_scaled, aas_scaled, aaop_scaled)
 
 
 
+# Entity Controlled
+# scale all the scores
+eo_scaled <- scale_scores(eo_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+ec_scaled <- scale_scores(ec_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+es_scaled <- scale_scores(es_transformed) %>%
+  gather("ranking_position", "scaled_score", 2:11)
+
+# name it up nice
+eo_scaled$metaphor <- "original"
+ec_scaled$metaphor <- "controlled"
+es_scaled$metaphor <- "separated"
+
+#concat the datasets
+total_entity <- rbind(eo_scaled, ec_scaled, es_scaled)
+
+
+```
+
+Playing with getting rid of outliers, this looks pretty ok.
+
+Make some plots
+```{r}
+unpolite_plot <- ggplot(total_unpolite, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+  
+  
+audience_plot <- ggplot(total_audience, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+  
+  
+entity_plot <- ggplot(total_entity, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")  
+```
+
+Great, that gives a better picture of everything together
+
+```{r}
+#play with scaling (or not)
+uo_unscaled <- gather(uo_transformed, "ranking_position", "scaled_score", 2:11)
+ut_unscaled <- gather(ut_transformed, "ranking_position", "scaled_score", 2:11)
+uf_unscaled <- gather(uf_transformed, "ranking_position", "scaled_score", 2:11)
+
+# name it up nice
+uo_unscaled$metaphor <- "original"
+ut_unscaled$metaphor <- "together"
+uf_unscaled$metaphor <- "forced"
+
+#concat the datasets
+total_unpolite_unscaled <- rbind(uo_unscaled, ut_unscaled, uf_unscaled)
+
+unpolite_plot_unscaled <- ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+  
+```
+
+
+```{r}
+
+ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+
+```
+
+
+## The Line Section
+Let's see what's up. 
+```{r}
+ggplot(total_unpolite, aes(scaled_score, fill=metaphor)) + 
+  geom_density(alpha = 0.3) + 
+  facet_wrap(~Group, scale="free")
+
+ggplot(total_audience, aes(scaled_score, fill=metaphor)) + 
+  geom_density(alpha = 0.3) + 
+  facet_wrap(~Group, scale="free")
+
+ggplot(total_entity, aes(scaled_score, fill=metaphor)) + 
+  geom_density(alpha = 0.3) + 
+  facet_wrap(~Group, scale="free")
+```
+Dear god that is hideous.
