@@ -355,6 +355,12 @@ As an aside, seems overall like 'size' is really mucking up the data. I'm thinki
 Let's dig into the specific data and see if one metaphor is more significant than the others. 
 Transpose and run an ANOVA
 ```{r}
+transpose_df <- function(data, transpose_variable="Group") {
+  n <- data$trasnpose_variable
+  data <- as.data.frame(t(data[,-1]))
+  colnames(data) <- n
+  data$transpose_variable <- factor(row.names(data))
+}
 # don't fuck it up
 u_test <- unpolite_summary
 # ugh transpose our dataframes
@@ -368,10 +374,37 @@ u_test$Group <- factor(row.names(u_test))
 
 Now let's run the ANOVA
 ```{r}
-u.mod1 = lm(original_score ~ Group, data = unpolite_summary)
-res <- aov(conflict ~ Group, data=u_test)
+# in u_test our columns are the *dependent* variables
+# and the rows are our *manipulation* (independent) variables
+aa_res <-aov(scaled_score ~ Group, data = total_audience)
+e_res <-aov(scaled_score ~ Group, data = total_entity)
+u_res <-aov(conflict ~ original_score + together_score + force_score, data = unpolite_summary)
+# break that out into conditions
 
+# now it's working when I have a big ol' data set that's all spread out?
+# Christ almighty I'm confused.
 ```
+Welp can't figure out how that all fits together.
+
+THOUGHT: We need to transpose the total_ datasets and test how the group
+perceptions are influenced by the metaphor manipulations.
+
+Breaking out into conditions below.
+```{r}
+# break that out into conditions
+utest2 <- gather(unpolite_summary, "together_score", "force_score", "original_score", 2:4)
+colnames(utest2)[2] <- "condition"
+colnames(utest2)[3] <- "score"
+
+## now try the dang anova
+u_res <-aov(score ~ condition + Group, data = utest2)
+```
+This is the closest we've come so far. Not too shabby methinks. 
+Still a bit confused as to what we're actually describing. Time to sleep on it. 
+            Df Sum Sq Mean Sq F value Pr(>F)
+condition    2  0.012   0.006   0.003  0.997
+Group        4 13.586   3.397   1.905  0.203
+Residuals    8 14.263   1.783     
 
 ## The Box Plot Section. 
 
@@ -480,6 +513,23 @@ entity_plot <- ggplot(total_entity, aes(x=Group, y=scaled_score, fill=metaphor))
   facet_wrap(~Group, scale="free")  
 ```
 
+```{r}
+# Unpolite
+ggplot(total_unpolite, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+  
+  # Audience
+ggplot(total_audience, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+  
+# Entity  
+ggplot(total_entity, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")  
+```
+
 Great, that gives a better picture of everything together
 
 ```{r}
@@ -509,6 +559,10 @@ ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) +
   stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
   facet_wrap(~Group, scale="free")
 
+ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+
 ```
 
 
@@ -527,4 +581,4 @@ ggplot(total_entity, aes(scaled_score, fill=metaphor)) +
   geom_density(alpha = 0.3) + 
   facet_wrap(~Group, scale="free")
 ```
-Dear god that is hideous.
+Dear god that is hideous. Disregard this.
