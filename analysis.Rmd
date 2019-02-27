@@ -22,99 +22,22 @@ EC = E control
 UT = U together
 UF = U force
 
-## The Data Loading Section
+## Load 'N' Wrangle
 
 Load these bad larrys
 Annoyingly can't create dynamically named variables in R AFAIK, so manual
 ```{r}
 condition_names <- c('aao', 'aas', 'aaop', 'eo','ec','es','uo','uf','ut')
-
 aao <- read.csv('AAO_copy.csv')
-aao_scores <- aao$Score
-aao_sd <- sd(aao_scores)
-
 aas <- read.csv('AAS_copy.csv')
-aas_scores <- aas$Score
-aas_sd <- sd(aas_scores)
-
 aaop <- read.csv('AAOP_copy.csv')
-aaop_scores <- aaop$Score
-aaop_sd <- sd(aaop_scores)
-
 eo <- read.csv('EO_copy.csv')
-eo_scores <- eo$Score
-eo_sd <- sd(eo_scores)
-
 ec <- read.csv('EC_copy.csv')
-ec_scores <- ec$Score
-ec_sd <- sd(ec_scores)
-
 es <- read.csv('ES_copy.csv')
-es_scores <- es$Score
-es_sd <- sd(es_scores)
-
 uo <- read.csv('UO_copy.csv')
-uo_scores <- uo$Score
-uo_sd <- sd(uo_scores)
-
 ut <- read.csv('UT_copy.csv')
-ut_scores <- ut$Score
-ut_sd <- sd(ut_scores)
-
 uf <- read.csv('UF_copy.csv')
-uf_scores <- uf$Score
-uf_sd <- sd(uf_scores)
-
 ```
-
-
-### Stats pt1
-Are within-gesture variances significantly different? 
-AAO:AAOP No
-F = 0.71733, num df = 9, denom df = 9, p-value = 0.6286
-AAO: AAS No
-F = 1.0886, num df = 9, denom df = 9, p-value = 0.9014
-AAS:AAOP No
-F = 0.65892, num df = 9, denom df = 9, p-value = 0.5442
-
-
-EO:EC No
-F = 0.43712, num df = 9, denom df = 9, p-value = 0.2336
-EO:ES Yes
-F = 0.18854, num df = 9, denom df = 9, p-value = 0.02061
-ES:EC No
-F = 2.3184, num df = 9, denom df = 9, p-value = 0.2263
-
-UO:UF No
-F = 1.4853, num df = 9, denom df = 9, p-value = 0.565
-UO:UT No
-F = 1.3844, num df = 9, denom df = 9, p-value = 0.6358
-UF:UT No
-F = 1.0729, num df = 9, denom df = 9, p-value = 0.9182
-
-```{r}
-var.test(aao_scores, aaop_scores, alternative = "two.sided")
-var.test(aao_scores, aas_scores, alternative = "two.sided")
-var.test(aas_scores, aaop_scores, alternative = "two.sided")
-
-var.test(eo_scores, ec_scores, alternative = "two.sided")
-var.test(eo_scores, es_scores, alternative = "two.sided")
-var.test(es_scores, ec_scores, alternative = "two.sided")
-
-var.test(uo_scores, uf_scores, alternative = "two.sided")
-var.test(uo_scores, ut_scores, alternative = "two.sided")
-var.test(ut_scores, uf_scores, alternative = "two.sided")
-
-```
-
-Human-interpretable results:
-Largely, the variance within gesture conditions was not statistically significant, 
-disproving our hypothesis that more complex metaphors are more difficult to interpret. 
-
-
-## The Wrangling Section
-
-Now let's bucket the responses and see if our results change. 
 
 First step, collapse responses into metaphor-y responses. 
 1. (Force is conflict) Combine rows for "There is tension between people in the group" and "People in the group disagree with one another"
@@ -123,34 +46,7 @@ First step, collapse responses into metaphor-y responses.
 4. (Open is accessible) "The speaker likes the people in the group" and "The speaker is open to feedback from the group"
 5. (Being in control is being above) "The speaker is annoyed with the group" and "The speaker is in control of the group"
 
-This means we're gonna have to calculate our own scores
-```{r}
-get_scores <- function(data) {
-  scores <- c()
-  for(row in 1:nrow(data)) {
-    total_score = 0
-    for(col in 2:11) {
-      total_score = total_score + data[row,col] * (12 - col)
-    }
-    scores[row] <- (total_score / data[row,12])
-  }
-  return(scores)
-}
-```
-This function does just that -- calculates the scores for each metaphor in a data set. 
-
-Now let's make copies of our data with our bucketed scores
-```{r}
-append_scores <- function(data) {
-  scores <- get_scores(data)
-  data$new_score=scores
-  return(data)
-}
-```
-
-
-Great, now that we can actually calculate our own scores and add them to our data, let's add a "group"
-column that actually tells us what the metaphors were in reference to. 
+We add a "group"column that actually tells us what the metaphors were in reference to. 
 ```{r}
 group_by_metaphor <- function(data) {
   data$group <- ""
@@ -180,8 +76,30 @@ group_by_metaphor <- function(data) {
 }
 ```
 
-Sweet, now that we have groups, we can combine data by group in order to create our new scores.
+This means we're gonna have to calculate our own scores
 ```{r}
+# Get all the overall scores (mean for condition) for a dataset
+get_scores <- function(data) {
+  scores <- c()
+  for(row in 1:nrow(data)) {
+    total_score = 0
+    for(col in 2:11) {
+      total_score = total_score + data[row,col] * (12 - col)
+    }
+    scores[row] <- (total_score / data[row,12])
+  }
+  return(scores)
+}
+
+# actually add the scores to the dataframe
+append_scores <- function(data) {
+  scores <- get_scores(data)
+  data$normalized_score=scores
+  return(data)
+}
+
+# Aggregate the data for columns that have the 
+# same metaphor measure
 bucket_by_group <- function(data) {
   return (aggregate(list(X1=data$X1, 
                  X2=data$X2,
@@ -194,54 +112,36 @@ bucket_by_group <- function(data) {
                  X9=data$X9,
                  X10=data$X10,
                  Total=data$Total), 
-             by=list(Group=data$group), 
+             by=list(metaphor_measure=data$group), 
              FUN=sum))
 }
 ```
 Sweet, now instead of dealing with survey statements we're dealing with semantic meaning. 
 
-Let's get those scores going
-```{r}
-# Just kidding, we already have the score calculator, just run this! 
-# append_scores(bucketed_data)
-
-```
-
 Just to be clear, this is what we're doing start to finish to get a nice and shiny 
-bucketed dataset with new scores we can then compare variances of, based on the semantic
-meanings and not the actual survey statements
+bucketed dataset with new scores we can then compare based on the semantic
+meanings and not the actual survey statements.
+So let's transform all our old data so it's nice and bucketed, and sorted by score
 ```{r}
 transform_data <- function(data) {
   transformed_data <- data %>%
     group_by_metaphor() %>%
     bucket_by_group() %>%
     append_scores()
+  return(transformed_data[rev(order(transformed_data$normalized_score)),])
 }
-``` 
 
+aao <- transform_data(aao)
+aas <- transform_data(aas)
+aaop <- transform_data(aaop)
 
-So let's transform all our old data so it's nice and bucketed, and sorted by score
-```{r}
-aao_transformed <- transform_data(aao)
-aao_transformed <- aao_transformed[rev(order(aao_transformed$new_score)),]
-aas_transformed <- transform_data(aas)
-aas_transformed <- aas_transformed[rev(order(aas_transformed$new_score)),]
-aaop_transformed <- transform_data(aaop)
-aaop_transformed <- aaop_transformed[rev(order(aaop_transformed$new_score)),]
+eo <- transform_data(eo)
+ec <- transform_data(ec)
+es <- transform_data(es)
 
-eo_transformed <- transform_data(eo)
-eo_transformed <- eo_transformed[rev(order(eo_transformed$new_score)),]
-ec_transformed <- transform_data(ec)
-ec_transformed <- ec_transformed[rev(order(ec_transformed$new_score)),]
-es_transformed <- transform_data(es)
-es_transformed <- es_transformed[rev(order(es_transformed$new_score)),]
-
-uo_transformed <- transform_data(uo)
-uo_transformed <- uo_transformed[rev(order(uo_transformed$new_score)),]
-uf_transformed <- transform_data(uf)
-uf_transformed <- uf_transformed[rev(order(uf_transformed$new_score)),]
-ut_transformed <- transform_data(ut)
-ut_transformed <- ut_transformed[rev(order(ut_transformed$new_score)),]
+uo <- transform_data(uo)
+uf <- transform_data(uf)
+ut <- transform_data(ut)
 ```
 
 
@@ -249,192 +149,38 @@ Let's do ourselves a favor and put these next to each other, so we have one tabl
 gesture, as opposed to 3. There is *for sure* a nicer way to do this but this is quick and dirty.
 I'm sorry for what I've done.
 ```{r}
-
-summarise_gesture <- function(orig_data, 
-                              manip1, manip1_name="manip1_score", 
-                              manip2, manip2_name="manip2_score") {
+summarise_gesture <- function(orig, manip1, manip1_name, manip2, manip2_name) {
   # drop columns we don't care about
-  keep = c("Group", "new_score")
-  orig_no_raw <- orig_data[keep] 
-  colnames(orig_no_raw)[2] <- "original_score"
+  keep = c("metaphor_measure", "normalized_score")
   
-  manip1_no_raw <- manip1[keep]
-  colnames(manip1_no_raw)[2] <- manip1_name
+  orig <- orig[keep] 
+  colnames(orig)[2] <- "original"
   
-  manip2_no_raw <- manip2[keep]
-  colnames(manip2_no_raw)[2] <- manip2_name
+  manip1 <- manip1[keep]
+  colnames(manip1)[2] <- manip1_name
   
-  summary_table <- left_join(orig_no_raw, manip1_no_raw, by="Group") %>%
-    left_join(manip2_no_raw, by="Group")
+  manip2 <- manip2[keep]
+  colnames(manip2)[2] <- manip2_name
+  
+  summary_table <- left_join(orig, manip1, by="metaphor_measure") %>%
+    left_join(manip2, by="metaphor_measure")
 }
 
-aa_summary <- summarise_gesture(aao_transformed, 
-                                aas_transformed, "small_score",
-                                aaop_transformed, "open_score")
+aa_summary <- summarise_gesture(aao, 
+                                aas, "small",
+                                aaop, "open")
                                 
-entity_summary <- summarise_gesture(eo_transformed, 
-                                es_transformed, "separate_score",
-                                ec_transformed, "control_score")
+entity_summary <- summarise_gesture(eo, 
+                                es, "separate",
+                                ec, "chest")
                                 
-unpolite_summary <- summarise_gesture(uo_transformed, 
-                                ut_transformed, "together_score",
-                                uf_transformed, "force_score")
+unpolite_summary <- summarise_gesture(uo, 
+                                ut, "together",
+                                uf, "force")
 ```
 
 
-## The Stats Section pt2
-Now we can test our variances AGAIN but this time with all the buckets in place
-so that we're combining statements that we think are relatively similar, or exemplify the 
-same sort of response.
-```{r}
-# extract the scores cause I'm a doofus and haven't done that yet
-aao_scores <- aao_transformed$new_score
-aas_scores <- aas_transformed$new_score
-aaop_scores <- aaop_transformed$new_score
-
-eo_scores <- eo_transformed$new_score
-ec_scores <- ec_transformed$new_score
-es_scores <- es_transformed$new_score
-
-uo_scores <- uo_transformed$new_score
-uf_scores <- uf_transformed$new_score
-ut_scores <- ut_transformed$new_score
-
-```
-
-
-Now compare those bad boys again
-Are within-gesture variances significantly different? 
-AAO:AAOP No
-F = 0.68374, num df = 4, denom df = 4, p-value = 0.7216
-AAO: AAS No
-F = 1.0645, num df = 4, denom df = 4, p-value = 0.9531
-AAS:AAOP No
-F = 0.64228, num df = 4, denom df = 4, p-value = 0.6784
-
-
-EO:EC No
-F = 0.4252, num df = 4, denom df = 4, p-value = 0.4278
-EO:ES No
-F = 0.18232, num df = 4, denom df = 4, p-value = 0.128
-ES:EC No
-F = 2.3322, num df = 4, denom df = 4, p-value = 0.4323
-
-UO:UF No
-F = 1.3896, num df = 4, denom df = 4, p-value = 0.7576
-UO:UT No
-F = 1.4618, num df = 4, denom df = 4, p-value = 0.7219
-UF:UT No
-F = 0.95062, num df = 4, denom df = 4, p-value = 0.962
-```{r}
-var.test(aao_scores, aaop_scores, alternative = "two.sided")
-var.test(aao_scores, aas_scores, alternative = "two.sided")
-var.test(aas_scores, aaop_scores, alternative = "two.sided")
-
-var.test(eo_scores, ec_scores, alternative = "two.sided")
-var.test(eo_scores, es_scores, alternative = "two.sided")
-var.test(es_scores, ec_scores, alternative = "two.sided")
-
-var.test(uo_scores, uf_scores, alternative = "two.sided")
-var.test(uo_scores, ut_scores, alternative = "two.sided")
-var.test(ut_scores, uf_scores, alternative = "two.sided")
-
-```
-
-
-Hmm funky, we brought the variances _closer_ together. 
-I suppose that makes sense, because we're giving people less to choose from. 
-
-In the AA case, AAO has much lower variance in scores. This actually makes more sense becuase 
-with more obviously different metaphors, there will be obvious front-runners and obvious
-not-at-play metaphors, so the original (more complex, more metaphor, more potentially ambiguous)
-gesture will show less of a clear pattern.
-
-As an aside, seems overall like 'size' is really mucking up the data. I'm thinking let's try to JUST analyze the metaphors we're interested in for each example. We can explore that later.
-
-Let's dig into the specific data and see if one metaphor is more significant than the others. 
-Transpose and run an ANOVA
-```{r}
-transpose_df <- function(data, transpose_var="Group") {
-  n <- data$transpose_var
-  data <- as.data.frame(t(data[,-1]))
-  colnames(data) <- n
-  data$transpose_var <- factor(row.names(data))
-  return(data)
-}
-```
-
-Now let's run the ANOVA
-```{r}
-# in u_test our columns are the *dependent* variables
-# and the rows are our *manipulation* (independent) variables
-aa_res <-aov(scaled_score ~ Group, data = total_audience)
-e_res <-aov(scaled_score ~ Group, data = total_entity)
-u_res <-aov(conflict ~ original_score + together_score + force_score, data = unpolite_summary)
-# break that out into conditions
-
-# now it's working when I have a big ol' data set that's all spread out?
-# Christ almighty I'm confused.
-```
-Welp can't figure out how that all fits together.
-
-THOUGHT: We need to transpose the total_ datasets and test how the group
-perceptions are influenced by the metaphor manipulations.
-
-Breaking out into conditions below.
-```{r}
-# break that out into conditions
-u_transpose <- transpose_df(unpolite_summary)
-
-utest2 <- gather(unpolite_summary, "together_score", "force_score", "original_score", 2:4)
-colnames(utest2)[2] <- "condition"
-colnames(utest2)[3] <- "score"
-
-## now try the dang anova
-u_res <-aov(score ~ condition + Group, data = utest2)
-```
-This is the closest we've come so far. Not too shabby methinks. 
-Still a bit confused as to what we're actually describing. Time to sleep on it. 
-            Df Sum Sq Mean Sq F value Pr(>F)
-condition    2  0.012   0.006   0.003  0.997
-Group        4 13.586   3.397   1.905  0.203
-Residuals    8 14.263   1.783     
-
-
-Need to get something like
-         closeness_score size_score conflict_score open_score control_score condition
-original        7.333333   7.190476       5.190476   4.309524      3.536585  original
-together        7.065217   6.933333       4.288889   5.200000      4.133333  together
-force           4.581818   5.927273       7.555556   3.740741      5.490909     force
-this is now u_transpose
-```{r}
-u_trans_aov <-aov(conflict_score ~ condition, data = u_transpose)
-u_aov <- aov(force ~ metaphor, data = unpolite_summary)
-u_test_aov <- aov(score ~ Group + condition + Group:condition, data=utest2)
-```
-I want to know the effect that the gesture condition has on each 
-of the metaphors. I want to know how the variance in scores per 
-metaphor group is explained by the gesture condition.
-
-onto something here
-> spread(utest2, Group, 'test')
-
-NO WE JUST NEED TO MAKE DIFFERENT TABLES FOR ALL OF THE DIFFERENT
-METAPHOR GROUPS!!!
-```{r}
-utest3 <- filter(utest2, Group=="conflict")
-utest3_aov <- aov(score ~ condition, data = utest3)
-
-utest4 <- filter(utest2, condition=="force_score")
-utest4_aov <- aov(score ~ Group, data = utest4)
-```
-just kidding that didn't work at all. Which actually makes me happy cause if it had
-I would be worried I didn't understand something big. 
-
-## The Box Plot Section. 
-
-convert ranking scores to weighted ranking scores
-also make sure we have things to make our plot look nice
+Now we have nice summaries of the data, but let's make sure we have a big table too.
 ```{r}
 scale_scores <- function(data) {
   data$X1 <- data$X1 * 10
@@ -450,6 +196,37 @@ scale_scores <- function(data) {
   return(data)
 }
 
+scale_gather_normalize <- function(data) {
+  data <- scale_scores(data) %>%
+    gather("ranking_position", "scaled_score", 2:11)
+  data$normalized_scores <- data$scaled_score / data$Total
+  return(data)
+}
+
+scale_and_normalize <- function(orig_data, cond1_data, cond1_name, cond2_data, cond2_name) {
+  # scale all the scores
+  orig_data <- scale_gather_normalize(orig_data) 
+  cond1_data <- scale_gather_normalize(cond1_data) 
+  cond2_data <- scale_gather_normalize(cond2_data) 
+  
+  # name it up nice
+  orig_data$condition <- "original"
+  cond1_data$condition <- cond1_name
+  cond2_data$condition <- cond2_name
+  
+  #concat the datasets
+  return(rbind(orig_data, cond1_data, cond2_data))
+}
+
+ total_unpolite <- scale_and_normalize(uo, ut, "together", uf, "forced")
+ total_entity <- scale_and_normalize(eo, ec, "chest", es, "separated")
+ total_audience <- scale_and_normalize(aao, aas, "small", aaop, "open")
+```
+
+## Plot 'Em and Load 'Em
+
+Our "outliers" are actually the most important part of our data, so let's make sure we visualize them as such:
+```{r}
 # define the summary function to describe our stats the way we want
 f <- function(x) {
   r <- quantile(x, probs = c(0.25, 0.5, 0.75, 0.999, 0.99999))
@@ -459,306 +236,67 @@ f <- function(x) {
 
 ```
 
-
-Convert our data to make it box-plottable
+And now let's graph if up real style 
 ```{r}
-# Unpolite
-# scale all the scores
-uo_scaled <- scale_scores(uo_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-ut_scaled <- scale_scores(ut_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-uf_scaled <- scale_scores(uf_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
+plot_the_thing <- function(data) {
+  data_plot <- ggplot(data, aes(x=metaphor_measure, y=normalized_scores, fill=condition)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~metaphor_measure, scale="free")
+}
 
-# name it up nice
-uo_scaled$metaphor <- "original"
-ut_scaled$metaphor <- "together"
-uf_scaled$metaphor <- "forced"
-
-#concat the datasets
-total_unpolite <- rbind(uo_scaled, ut_scaled, uf_scaled)
-
-
-# Available Audience
-# scale all the scores
-aao_scaled <- scale_scores(aao_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-aas_scaled <- scale_scores(aas_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-aaop_scaled <- scale_scores(aaop_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-
-# name it up nice
-aao_scaled$metaphor <- "original"
-aas_scaled$metaphor <- "small"
-aaop_scaled$metaphor <- "open"
-
-#concat the datasets
-total_audience <- rbind(aao_scaled, aas_scaled, aaop_scaled)
-
-
-
-# Entity Controlled
-# scale all the scores
-eo_scaled <- scale_scores(eo_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-ec_scaled <- scale_scores(ec_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-es_scaled <- scale_scores(es_transformed) %>%
-  gather("ranking_position", "scaled_score", 2:11)
-
-# name it up nice
-eo_scaled$metaphor <- "original"
-ec_scaled$metaphor <- "controlled"
-es_scaled$metaphor <- "separated"
-
-#concat the datasets
-total_entity <- rbind(eo_scaled, ec_scaled, es_scaled)
-
-
+unpolite_plot <- plot_the_thing(total_unpolite)
+audience_plot <- plot_the_thing(total_audience)
+entity_plot <- plot_the_thing(total_entity)
 ```
-
-Playing with getting rid of outliers, this looks pretty ok.
-
-Make some plots
-```{r}
-unpolite_plot <- ggplot(total_unpolite, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-  
-  
-audience_plot <- ggplot(total_audience, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-  
-  
-entity_plot <- ggplot(total_entity, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")  
-```
-
-```{r}
-# Unpolite
-ggplot(total_unpolite, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-  
-  # Audience
-ggplot(total_audience, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-  
-# Entity  
-ggplot(total_entity, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")  
-```
-
 Great, that gives a better picture of everything together
 
+
+## Stats on Stats on Stats
 ```{r}
-#play with scaling (or not)
-uo_unscaled <- gather(uo_transformed, "ranking_position", "scaled_score", 2:11)
-ut_unscaled <- gather(ut_transformed, "ranking_position", "scaled_score", 2:11)
-uf_unscaled <- gather(uf_transformed, "ranking_position", "scaled_score", 2:11)
-
-# name it up nice
-uo_unscaled$metaphor <- "original"
-ut_unscaled$metaphor <- "together"
-uf_unscaled$metaphor <- "forced"
-
-#concat the datasets
-total_unpolite_unscaled <- rbind(uo_unscaled, ut_unscaled, uf_unscaled)
-
-unpolite_plot_unscaled <- ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-  
+transpose_df <- function(data, transpose_var="metaphor_measure") {
+  n <- data$transpose_var
+  data <- as.data.frame(t(data[,-1]))
+  colnames(data) <- n
+  data$transpose_var <- factor(row.names(data))
+  return(data)
+}
 ```
 
+Let's check to see, for example, how much the variation in 'closeness' is dependent on our condition
+```{r}
+unpolite_closeness_aov <- aov(normalized_scores ~ condition, data=filter(total_unpolite, metaphor_measure=='closeness'))
+summary(unpolite_closeness_aov)
+```
+
+Basically the answer is... not much. But we can try for all of the different conditions.
+```{r}
+generate_anovas <- function(data) {
+  print('closeness, conflict, control, open, size')
+  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='closeness'))))
+  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='conflict'))))
+  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='control'))))
+  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='open'))))
+  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='size'))))
+}
+```
 
 ```{r}
-ggplot(total_unpolite, aes(x=Group, y=normalized_scores, fill=condition)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-
-ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
-
-
-# wait let's scale the direct scores...
-total_unpolite$normalized_scores <- total_unpolite$scaled_score / total_unpolite $ Total
+print('unpolite')
+generate_anovas(total_unpolite)
 ```
 
-
-## The Line Section
-Let's see what's up. 
 ```{r}
-ggplot(total_unpolite, aes(scaled_score, fill=metaphor)) + 
-  geom_density(alpha = 0.3) + 
-  facet_wrap(~Group, scale="free")
-
-ggplot(total_audience, aes(scaled_score, fill=metaphor)) + 
-  geom_density(alpha = 0.3) + 
-  facet_wrap(~Group, scale="free")
-
-ggplot(total_entity, aes(scaled_score, fill=metaphor)) + 
-  geom_density(alpha = 0.3) + 
-  facet_wrap(~Group, scale="free")
+print('audience')
+generate_anovas(total_audience)
 ```
-Dear god that is hideous. Disregard this.
 
-
-
-## Stats II: The Statsening
-Talking to Dale, sounds like we should resample/bootstrap, recreate original table
-(unpolite_summary), with arbitrary participant labels, calculate differences in table,
-create a variance plot from there, and if that confidence interval includes 0 then
-the variances are not statistically significantly different. 
-
-OR let's play around with that total table to see if I can figure some shiite out. 
-Basically need to think about the sampling unit. I think sampling from the original table/
-reconstructing participant rankings might help. 
-Also look into Mann-WhitneyU test
-
-total_aov <- aov(scaled_score ~ Group * condition, data=total_unpolite)
-
-This is the way
 ```{r}
-total_aov <- aov(scaled_score ~ condition, data=filter(total_unpolite, Group=='control'))
-```
-
-He also said to try bootstrapping so that's what I'll do here
-utest
-         metaphor condition   scores
-1     close_score  original 7.333333
-2      size_score  original 7.190476
-3  conflict_score  original 5.190476
-4      open_score  original 4.309524
-5   control_score  original 3.536585
-6     close_score  together 7.065217
-7      size_score  together 6.933333
-8  conflict_score  together 4.288889
-9      open_score  together 5.200000
-10  control_score  together 4.133333
-11    close_score     force 4.581818
-12     size_score     force 5.927273
-13 conflict_score     force 7.555556
-14     open_score     force 3.740741
-15  control_score     force 5.490909
-```{r}
-rsq <- function(formula, data, indices) {
-  d <- data[indices,] # allows boot to select sample 
-  print(d)
-  fit <- lm(formula, data=d)
-  return(summary(fit)$r.square)
-} 
-
-boot_test <- boot(data=utest, statistic=rsq, R=10, formula=scores ~ metaphor * condition)
-# huh that says we have a perfect fit. that can't be right.
-```
-One of the generated data sets is
-           metaphor condition   scores
-15    control_score     force 5.490909
-4        open_score  original 4.309524
-2        size_score  original 7.190476
-9        open_score  together 5.200000
-5     control_score  original 3.536585
-8    conflict_score  together 4.288889
-14       open_score     force 3.740741
-7        size_score  together 6.933333
-10    control_score  together 4.133333
-15.1  control_score     force 5.490909
-14.1     open_score     force 3.740741
-10.1  control_score  together 4.133333
-13   conflict_score     force 7.555556
-3    conflict_score  original 5.190476
-2.1      size_score  original 7.190476
-
-Oh I see. It's because we're sampling the same number every time. What we want is to generate
-scores that are from the distribution of the original data, which we can do because
-we have the SD of scores from the beginning. 
-
-I'm just gonna roll my own here. 
-```{r}
-# For each condition, add say 10 more samples whose score value is 
-# selected from a normal distribution where the mean is the original 
-# score of the condition and SD is sd of those conditions scores
-
-# make 10 copies
-
-# 10 times for 10 copies, * 3 for each metaphor
-make_unpolite_data <- function()
-
-metaphor_col <- rep(c('closeness_score','open_score','control_score','conflict_score','size_score'), each=10,30)
-# 5 repetitions per metaphor col
-condition_col <- rep(c('original','together','force'), each=50)
-
-u_generated <- data.frame(metaphor_col, condition_col)
-uo_size_scores <- rnorm(10, unpolite_summary$original[2], sd(uo_scores))
-uo_control_scores <- rnorm(10, unpolite_summary$original[5], sd(uo_scores))
-uo_conflict_scores <- rnorm(10, unpolite_summary$original[3], sd(uo_scores))
-uo_closeness_scores <- rnorm(10, unpolite_summary$original[1], sd(uo_scores))
-uo_open_scores <- rnorm(10, unpolite_summary$original[4], sd(uo_scores))
-
-ut_size_scores <- rnorm(10, unpolite_summary$together[2], sd(ut_scores))
-ut_control_scores <- rnorm(10, unpolite_summary$together[5], sd(ut_scores))
-ut_conflict_scores <- rnorm(10, unpolite_summary$together[3], sd(ut_scores))
-ut_closeness_scores <- rnorm(10, unpolite_summary$together[1], sd(ut_scores))
-ut_open_scores <- rnorm(10, unpolite_summary$together[4], sd(ut_scores))
-
-uf_size_scores <- rnorm(10, unpolite_summary$force[2], sd(uf_scores))
-uf_control_scores <- rnorm(10, unpolite_summary$force[5], sd(uf_scores))
-uf_conflict_scores <- rnorm(10, unpolite_summary$force[3], sd(uf_scores))
-uf_closeness_scores <- rnorm(10, unpolite_summary$force[1], sd(uf_scores))
-uf_open_scores <- rnorm(10, unpolite_summary$force[4], sd(uf_scores))
-
-generated_scores <- c(
-  uo_closeness_scores, uo_open_scores, uo_control_scores, uo_conflict_scores, uo_size_scores,
-  ut_closeness_scores, ut_open_scores, ut_control_scores, ut_conflict_scores, ut_size_scores,
-  uf_closeness_scores, uf_open_scores, uf_control_scores, uf_conflict_scores, uf_size_scores
-)
-
-u_generated$scores <- generated_scores
-```
-
-Cool NOW let's run an anova on it
-```{r}
-generated_data_aov <- aov(scores ~ metaphor_col * condition_col, data=u_generated)
-# that seems to say our condition is pretty good, but that doesn't make sense semantically
-
-# now let's try it on specific metaphors
-generated_conflict_aov <- aov(scores ~ condition_col, data=filter(u_generated,metaphor_col=='conflict_score'))
-```
-
-Nope that can't be right, now it says it's stupid significant.
-
-
-## The Good Good Section
-take the scores right
-normalize them by number of respondants
-```{}
-total_unpolite$normalized_scores <- total_unpolite$scaled_score / total_unpolite $ Total
-```
-now you have this handy dandy column called normalized_scores
-That's what you plot
-```{r}
-ggplot(total_unpolite, aes(x=Group, y=normalized_scores, fill=condition)) + 
-  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
-  facet_wrap(~Group, scale="free")
+print('entity')
+generate_anovas(total_entity)
 ```
 
 
-and you can do all your analyses on these scaled scores!
-```{r}
-# This considers the condition the manipulation, 
-total_aov <- aov(normalized_scores ~ condition, data=filter(total_unpolite, Group=='closeness'))
 
-# but I wonder if we think about it the opposite way what happens
-total_aov <- aov(normalized_scores ~ Group, data=filter(total_unpolite, condition=='together'))
-```
 
 
 
