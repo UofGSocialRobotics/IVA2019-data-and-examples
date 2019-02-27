@@ -355,21 +355,13 @@ As an aside, seems overall like 'size' is really mucking up the data. I'm thinki
 Let's dig into the specific data and see if one metaphor is more significant than the others. 
 Transpose and run an ANOVA
 ```{r}
-transpose_df <- function(data, transpose_variable="Group") {
-  n <- data$trasnpose_variable
+transpose_df <- function(data, transpose_var="Group") {
+  n <- data$transpose_var
   data <- as.data.frame(t(data[,-1]))
   colnames(data) <- n
-  data$transpose_variable <- factor(row.names(data))
+  data$transpose_var <- factor(row.names(data))
+  return(data)
 }
-# don't fuck it up
-u_test <- unpolite_summary
-# ugh transpose our dataframes
-n <- u_test$Group
-
-# transpose all but first column (group)
-u_test <- as.data.frame(t(u_test[,-1]))
-colnames(u_test) <- n
-u_test$Group <- factor(row.names(u_test))
 ```
 
 Now let's run the ANOVA
@@ -392,6 +384,8 @@ perceptions are influenced by the metaphor manipulations.
 Breaking out into conditions below.
 ```{r}
 # break that out into conditions
+u_transpose <- transpose_df(unpolite_summary)
+
 utest2 <- gather(unpolite_summary, "together_score", "force_score", "original_score", 2:4)
 colnames(utest2)[2] <- "condition"
 colnames(utest2)[3] <- "score"
@@ -405,6 +399,37 @@ Still a bit confused as to what we're actually describing. Time to sleep on it.
 condition    2  0.012   0.006   0.003  0.997
 Group        4 13.586   3.397   1.905  0.203
 Residuals    8 14.263   1.783     
+
+
+Need to get something like
+         closeness_score size_score conflict_score open_score control_score condition
+original        7.333333   7.190476       5.190476   4.309524      3.536585  original
+together        7.065217   6.933333       4.288889   5.200000      4.133333  together
+force           4.581818   5.927273       7.555556   3.740741      5.490909     force
+this is now u_transpose
+```{r}
+u_trans_aov <-aov(conflict_score ~ condition, data = u_transpose)
+u_aov <- aov(force ~ metaphor, data = unpolite_summary)
+u_test_aov <- aov(score ~ Group + condition + Group:condition, data=utest2)
+```
+I want to know the effect that the gesture condition has on each 
+of the metaphors. I want to know how the variance in scores per 
+metaphor group is explained by the gesture condition.
+
+onto something here
+> spread(utest2, Group, 'test')
+
+NO WE JUST NEED TO MAKE DIFFERENT TABLES FOR ALL OF THE DIFFERENT
+METAPHOR GROUPS!!!
+```{r}
+utest3 <- filter(utest2, Group=="conflict")
+utest3_aov <- aov(score ~ condition, data = utest3)
+
+utest4 <- filter(utest2, condition=="force_score")
+utest4_aov <- aov(score ~ Group, data = utest4)
+```
+just kidding that didn't work at all. Which actually makes me happy cause if it had
+I would be worried I didn't understand something big. 
 
 ## The Box Plot Section. 
 
@@ -554,8 +579,7 @@ unpolite_plot_unscaled <- ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_
 
 
 ```{r}
-
-ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) + 
+ggplot(total_unpolite, aes(x=Group, y=normalized_scores, fill=condition)) + 
   stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
   facet_wrap(~Group, scale="free")
 
@@ -563,6 +587,9 @@ ggplot(total_unpolite_unscaled, aes(x=Group, y=scaled_score, fill=metaphor)) +
   stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
   facet_wrap(~Group, scale="free")
 
+
+# wait let's scale the direct scores...
+total_unpolite$normalized_scores <- total_unpolite$scaled_score / total_unpolite $ Total
 ```
 
 
@@ -582,3 +609,156 @@ ggplot(total_entity, aes(scaled_score, fill=metaphor)) +
   facet_wrap(~Group, scale="free")
 ```
 Dear god that is hideous. Disregard this.
+
+
+
+## Stats II: The Statsening
+Talking to Dale, sounds like we should resample/bootstrap, recreate original table
+(unpolite_summary), with arbitrary participant labels, calculate differences in table,
+create a variance plot from there, and if that confidence interval includes 0 then
+the variances are not statistically significantly different. 
+
+OR let's play around with that total table to see if I can figure some shiite out. 
+Basically need to think about the sampling unit. I think sampling from the original table/
+reconstructing participant rankings might help. 
+Also look into Mann-WhitneyU test
+
+total_aov <- aov(scaled_score ~ Group * condition, data=total_unpolite)
+
+This is the way
+```{r}
+total_aov <- aov(scaled_score ~ condition, data=filter(total_unpolite, Group=='control'))
+```
+
+He also said to try bootstrapping so that's what I'll do here
+utest
+         metaphor condition   scores
+1     close_score  original 7.333333
+2      size_score  original 7.190476
+3  conflict_score  original 5.190476
+4      open_score  original 4.309524
+5   control_score  original 3.536585
+6     close_score  together 7.065217
+7      size_score  together 6.933333
+8  conflict_score  together 4.288889
+9      open_score  together 5.200000
+10  control_score  together 4.133333
+11    close_score     force 4.581818
+12     size_score     force 5.927273
+13 conflict_score     force 7.555556
+14     open_score     force 3.740741
+15  control_score     force 5.490909
+```{r}
+rsq <- function(formula, data, indices) {
+  d <- data[indices,] # allows boot to select sample 
+  print(d)
+  fit <- lm(formula, data=d)
+  return(summary(fit)$r.square)
+} 
+
+boot_test <- boot(data=utest, statistic=rsq, R=10, formula=scores ~ metaphor * condition)
+# huh that says we have a perfect fit. that can't be right.
+```
+One of the generated data sets is
+           metaphor condition   scores
+15    control_score     force 5.490909
+4        open_score  original 4.309524
+2        size_score  original 7.190476
+9        open_score  together 5.200000
+5     control_score  original 3.536585
+8    conflict_score  together 4.288889
+14       open_score     force 3.740741
+7        size_score  together 6.933333
+10    control_score  together 4.133333
+15.1  control_score     force 5.490909
+14.1     open_score     force 3.740741
+10.1  control_score  together 4.133333
+13   conflict_score     force 7.555556
+3    conflict_score  original 5.190476
+2.1      size_score  original 7.190476
+
+Oh I see. It's because we're sampling the same number every time. What we want is to generate
+scores that are from the distribution of the original data, which we can do because
+we have the SD of scores from the beginning. 
+
+I'm just gonna roll my own here. 
+```{r}
+# For each condition, add say 10 more samples whose score value is 
+# selected from a normal distribution where the mean is the original 
+# score of the condition and SD is sd of those conditions scores
+
+# make 10 copies
+
+# 10 times for 10 copies, * 3 for each metaphor
+make_unpolite_data <- function()
+
+metaphor_col <- rep(c('closeness_score','open_score','control_score','conflict_score','size_score'), each=10,30)
+# 5 repetitions per metaphor col
+condition_col <- rep(c('original','together','force'), each=50)
+
+u_generated <- data.frame(metaphor_col, condition_col)
+uo_size_scores <- rnorm(10, unpolite_summary$original[2], sd(uo_scores))
+uo_control_scores <- rnorm(10, unpolite_summary$original[5], sd(uo_scores))
+uo_conflict_scores <- rnorm(10, unpolite_summary$original[3], sd(uo_scores))
+uo_closeness_scores <- rnorm(10, unpolite_summary$original[1], sd(uo_scores))
+uo_open_scores <- rnorm(10, unpolite_summary$original[4], sd(uo_scores))
+
+ut_size_scores <- rnorm(10, unpolite_summary$together[2], sd(ut_scores))
+ut_control_scores <- rnorm(10, unpolite_summary$together[5], sd(ut_scores))
+ut_conflict_scores <- rnorm(10, unpolite_summary$together[3], sd(ut_scores))
+ut_closeness_scores <- rnorm(10, unpolite_summary$together[1], sd(ut_scores))
+ut_open_scores <- rnorm(10, unpolite_summary$together[4], sd(ut_scores))
+
+uf_size_scores <- rnorm(10, unpolite_summary$force[2], sd(uf_scores))
+uf_control_scores <- rnorm(10, unpolite_summary$force[5], sd(uf_scores))
+uf_conflict_scores <- rnorm(10, unpolite_summary$force[3], sd(uf_scores))
+uf_closeness_scores <- rnorm(10, unpolite_summary$force[1], sd(uf_scores))
+uf_open_scores <- rnorm(10, unpolite_summary$force[4], sd(uf_scores))
+
+generated_scores <- c(
+  uo_closeness_scores, uo_open_scores, uo_control_scores, uo_conflict_scores, uo_size_scores,
+  ut_closeness_scores, ut_open_scores, ut_control_scores, ut_conflict_scores, ut_size_scores,
+  uf_closeness_scores, uf_open_scores, uf_control_scores, uf_conflict_scores, uf_size_scores
+)
+
+u_generated$scores <- generated_scores
+```
+
+Cool NOW let's run an anova on it
+```{r}
+generated_data_aov <- aov(scores ~ metaphor_col * condition_col, data=u_generated)
+# that seems to say our condition is pretty good, but that doesn't make sense semantically
+
+# now let's try it on specific metaphors
+generated_conflict_aov <- aov(scores ~ condition_col, data=filter(u_generated,metaphor_col=='conflict_score'))
+```
+
+Nope that can't be right, now it says it's stupid significant.
+
+
+## The Good Good Section
+take the scores right
+normalize them by number of respondants
+```{}
+total_unpolite$normalized_scores <- total_unpolite$scaled_score / total_unpolite $ Total
+```
+now you have this handy dandy column called normalized_scores
+That's what you plot
+```{r}
+ggplot(total_unpolite, aes(x=Group, y=normalized_scores, fill=condition)) + 
+  stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
+  facet_wrap(~Group, scale="free")
+```
+
+
+and you can do all your analyses on these scaled scores!
+```{r}
+# This considers the condition the manipulation, 
+total_aov <- aov(normalized_scores ~ condition, data=filter(total_unpolite, Group=='closeness'))
+
+# but I wonder if we think about it the opposite way what happens
+total_aov <- aov(normalized_scores ~ Group, data=filter(total_unpolite, condition=='together'))
+```
+
+
+
