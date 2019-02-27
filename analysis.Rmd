@@ -242,12 +242,27 @@ plot_the_thing <- function(data) {
   data_plot <- ggplot(data, aes(x=metaphor_measure, y=normalized_scores, fill=condition)) + 
   stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
   facet_wrap(~metaphor_measure, scale="free")
+  
+  return(data_plot)
 }
 
 unpolite_plot <- plot_the_thing(total_unpolite)
 audience_plot <- plot_the_thing(total_audience)
 entity_plot <- plot_the_thing(total_entity)
 ```
+Unpolite Plot:
+```{r}
+unpolite_plot
+```
+Audience Plot:
+```{r}
+audience_plot
+```
+Entity Plot
+```{r}
+entity_plot
+```
+
 Great, that gives a better picture of everything together
 
 
@@ -272,11 +287,16 @@ Basically the answer is... not much. But we can try for all of the different con
 ```{r}
 generate_anovas <- function(data) {
   print('closeness, conflict, control, open, size')
-  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='closeness'))))
-  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='conflict'))))
-  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='control'))))
-  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='open'))))
-  print(summary(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure=='size'))))
+  print(summary(generate_anova(data, 'closeness')))
+  print(summary(generate_anova(data, 'conflict')))
+  print(summary(generate_anova(data, 'control')))
+  print(summary(generate_anova(data,'open')))
+  print(summary(generate_anova(data,'size')))
+}
+
+# not particularly useful up above, but handy for having during test period. 
+generate_anova <- function(data, metaphor_filter) {
+  return(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure==metaphor_filter)))
 }
 ```
 
@@ -296,7 +316,77 @@ generate_anovas(total_entity)
 ```
 
 
+###TODO: MANOVAS // compare between groups??
 
 
+### Bootstrapping the ~Data~
+Now let's try bootstrapping this bad boy
+```{r}
+generate_bootstrapped_data <- function(data, n) {
+  generated_data <- data[0,]
+  for(i in 1:n) {
+    generated_data <- rbind(generated_data, sample_n(data, 1))
+  }
+  return(generated_data)
+}
+```
 
+
+Perhaps fortunately, perhaps not, this brings significance values wayyyyy up. Let's compare:
+```{r}
+unpolite_bootstrapped <- generate_bootstrapped_data(total_unpolite, 600)
+print('unpolite')
+generate_anovas(unpolite_bootstrapped)
+```
+
+```{r}
+audience_bootstrapped <- generate_bootstrapped_data(total_audience, 600)
+print('audience')
+generate_anovas(audience_bootstrapped)
+```
+
+```{r}
+entity_bootstrapped <- generate_bootstrapped_data(total_entity, 600)
+print('entity')
+generate_anovas(entity_bootstrapped)
+```
+
+
+Now we have to prove that our bootstrapped dataset isn't garbaggio from our first one:
+```{r}
+
+```
+
+
+### Show Me What Matters
+Fine, I will. 
+
+# "Unpolite"
+```{r}
+print_anova_significance <- function(data) {
+  print('closeness')
+  print(summary(generate_anova(data, 'closeness'))[[1]][["Pr(>F)"]][1])
+  print('conflict')
+  print(summary(generate_anova(data, 'conflict'))[[1]][["Pr(>F)"]][1])
+  print('control')
+  print(summary(generate_anova(data, 'control'))[[1]][["Pr(>F)"]][1])
+  print('open')
+  print(summary(generate_anova(data,'open'))[[1]][["Pr(>F)"]][1])
+  print('size')
+  print(summary(generate_anova(data,'size'))[[1]][["Pr(>F)"]][1])
+}
+
+print_anova_significance(unpolite_bootstrapped)
+```
+
+
+# "Available Audience"
+```{r}
+print_anova_significance(audience_bootstrapped)
+```
+
+# "Entity"
+```{r}
+print_anova_significance(entity_bootstrapped)
+```
 
