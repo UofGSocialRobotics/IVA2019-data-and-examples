@@ -459,13 +459,31 @@ average_ps(total_entity, 100)
 
 ## Power Analysis
 ```{r}
+get_avg_participants_per_condition <- function(data1, data2, data3) {
+  return(mean(mean(data1$Total)/2, mean(data2$Total)/2, mean(data3$Total)/2))
+}
+
 #pwr.anova.test(k = , n = , f = , sig.level = , power = )
 #where k is the number of groups and n is the common sample size in each group.
 #For a one-way ANOVA effect size is measured by f where
 # Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
-pwr.anova.test(k=3, n=20, sig.level=0.15, f=0.25)
+pwr.anova.test(k=3, n=20, sig.level=0.05, f=0.25)
 ```
-Zoinks that ain't great. 
+Zoinks that ain't great. We need to up our sample size! 
+```{r}
+pwr.anova.test(k=3, sig.level=0.05, f=0.25, power=0.8)
+```
+To *52* participants per group (survey) the look of it! 
+
+Right now we have powers of:
+```{r}
+print("audience:")
+pwr.anova.test(k=3, n=get_avg_participants_per_condition(aao, aas, aaop), sig.level=0.05, f=0.25)
+print("entity:")
+pwr.anova.test(k=3, n=get_avg_participants_per_condition(eo, es, ec), sig.level=0.05, f=0.25)
+print("unpolite:")
+pwr.anova.test(k=3, n=get_avg_participants_per_condition(uo, uf, ut), sig.level=0.05, f=0.25)
+```
 
 
 ### Other Exploratory Analyses
