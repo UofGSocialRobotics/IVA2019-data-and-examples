@@ -334,35 +334,30 @@ generate_bootstrapped_data <- function(data, n) {
 
 Perhaps fortunately, perhaps not, this brings significance values wayyyyy up. Let's compare:
 ```{r}
-unpolite_bootstrapped <- generate_bootstrapped_data(total_unpolite, 600)
+unpolite_bootstrapped <- generate_bootstrapped_data(total_unpolite, 150)
 print('unpolite')
 generate_anovas(unpolite_bootstrapped)
 ```
 
 ```{r}
-audience_bootstrapped <- generate_bootstrapped_data(total_audience, 600)
+audience_bootstrapped <- generate_bootstrapped_data(total_audience, 150)
 print('audience')
 generate_anovas(audience_bootstrapped)
 ```
 
 ```{r}
-entity_bootstrapped <- generate_bootstrapped_data(total_entity, 600)
+entity_bootstrapped <- generate_bootstrapped_data(total_entity, 150)
 print('entity')
 generate_anovas(entity_bootstrapped)
 ```
 
 
-Now we have to prove that our bootstrapped dataset isn't garbaggio from our first one:
-```{r}
-
-```
-
 
 ### Show Me What Matters
 Fine, I will. 
 
-# "Unpolite"
 ```{r}
+## Make it pretty
 print_anova_significance <- function(data) {
   print('closeness')
   print(summary(generate_anova(data, 'closeness'))[[1]][["Pr(>F)"]][1])
@@ -375,18 +370,60 @@ print_anova_significance <- function(data) {
   print('size')
   print(summary(generate_anova(data,'size'))[[1]][["Pr(>F)"]][1])
 }
+```
+Now we need to actually average the p values from bootstrapping
+```{r}
+## Do it a buncha times
+average_p <- function(data, metaphor_measure, n) {
+  avg_measure <- c()
+  for(i in 1:n) {
+    bootstrapped_data <- generate_bootstrapped_data(data, 150)
+    bootstrapped_p <- summary(generate_anova(bootstrapped_data, metaphor_measure))[[1]][["Pr(>F)"]][1]
+    avg_measure <- c(avg_measure, bootstrapped_p)
+  }
+  return(mean(avg_measure))
+}
 
-print_anova_significance(unpolite_bootstrapped)
+average_ps <- function(data, n) {
+  print('closeness')
+  print(average_p(data, 'closeness', n))
+  print('control')
+  print(average_p(data, 'control', n))
+  print('size')
+  print(average_p(data, 'size', n))
+  print('open')
+  print(average_p(data, 'open', n))
+  print('conflict')
+  print(average_p(data, 'conflict', n))
+}
+```
+
+
+# "Unpolite"
+```{r}
+print_anova_significance(total_unpolite)
+plot_the_thing(total_unpolite)
+# average p values of BOOTSTRAPPED data
+average_ps(total_unpolite, 100)
 ```
 
 
 # "Available Audience"
 ```{r}
-print_anova_significance(audience_bootstrapped)
+print_anova_significance(total_audience)
+plot_the_thing(total_audience)
+# average p values of BOOTSTRAPPED data
+average_ps(total_audience, 100)
 ```
 
 # "Entity"
 ```{r}
-print_anova_significance(entity_bootstrapped)
+print_anova_significance(total_entity)
+plot_the_thing(total_entity)
+# average p values of BOOTSTRAPPED data
+average_ps(total_entity, 100)
 ```
+
+
+
 
