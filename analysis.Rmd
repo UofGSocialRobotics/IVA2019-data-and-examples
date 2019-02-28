@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
+library(pwr)
 ```
 
 AA = "available audience"
@@ -49,27 +50,27 @@ First step, collapse responses into metaphor-y responses.
 We add a "group"column that actually tells us what the metaphors were in reference to. 
 ```{r}
 group_by_metaphor <- function(data) {
-  data$group <- ""
+  data$metaphor_measure <- ""
   for(row in 1:nrow(data)) {
     if (data$Answer.Choices[row] == "People in the group are working together to solve a problem" || 
         data$Answer.Choices[row] == "People in the group generally get along") {
-      data$group[row] <- "closeness"
+      data$metaphor_measure[row] <- "closeness"
     } else if (data$Answer.Choices[row] == "There is tension between people in the group" || 
                data$Answer.Choices[row] == "People in the group disagree with one another") {
-      data$group[row] <- "conflict"
+      data$metaphor_measure[row] <- "conflict"
     } else if (data$Answer.Choices[row] == "She is referring to everybody in the group" || 
                data$Answer.Choices[row] == "This group consists of many people") {
-      data$group[row] <- "size"
+      data$metaphor_measure[row] <- "size"
     } else if (data$Answer.Choices[row] == "The speaker likes the people in the group" || 
                data$Answer.Choices[row] == "The speaker is open to feedback from the group") {
-      data$group[row] <- "open"
+      data$metaphor_measure[row] <- "open"
     } else if (data$Answer.Choices[row] == "The speaker is in annoyed with the group" || 
                data$Answer.Choices[row] == "The speaker is in control of the group") {
-      data$group[row] <- "control"
+      data$metaphor_measure[row] <- "control"
     } else {
       # for some reason it's not recognizing the annoyed case, so let's throw it in the else
       # cause that seems safe.
-      data$group[row] <- "control"
+      data$metaphor_measure[row] <- "control"
     }
   }
   return(data)
@@ -91,10 +92,27 @@ get_scores <- function(data) {
   return(scores)
 }
 
+# variances while we're at it too
+get_variances <- function(data) {
+  sds <- c()
+  for(row in 1:nrow(data)) {
+    variances <- c()
+    for(col in 2:11) {
+      variances <- append(variances, data[[row, col]])
+    }
+    sds[row] <- sd(variances)
+  }
+  return(sds)
+}
+
 # actually add the scores to the dataframe
 append_scores <- function(data) {
   scores <- get_scores(data)
+  variances <- get_variances(data)
+  print(scores)
+  print(variances)
   data$normalized_score=scores
+  data$metaphor_variance=variances
   return(data)
 }
 
@@ -112,7 +130,7 @@ bucket_by_group <- function(data) {
                  X9=data$X9,
                  X10=data$X10,
                  Total=data$Total), 
-             by=list(metaphor_measure=data$group), 
+             by=list(metaphor_measure=data$metaphor_measure), 
              FUN=sum))
 }
 ```
@@ -127,7 +145,7 @@ transform_data <- function(data) {
   transformed_data <- data %>%
     group_by_metaphor() %>%
     bucket_by_group() %>%
-    append_scores()
+    append_scores() 
   return(transformed_data[rev(order(transformed_data$normalized_score)),])
 }
 
@@ -151,7 +169,7 @@ I'm sorry for what I've done.
 ```{r}
 summarise_gesture <- function(orig, manip1, manip1_name, manip2, manip2_name) {
   # drop columns we don't care about
-  keep = c("metaphor_measure", "normalized_score")
+  keep = c("metaphor_measure", "normalized_score", "metaphor_variance")
   
   orig <- orig[keep] 
   colnames(orig)[2] <- "original"
@@ -294,9 +312,23 @@ generate_anovas <- function(data) {
   print(summary(generate_anova(data,'size')))
 }
 
+generate_anovas_by_mean <- function(data) {
+  print('closeness, conflict, control, open, size')
+  print(summary(generate_anova_by_mean(data, 'closeness')))
+  print(summary(generate_anova_by_mean(data, 'conflict')))
+  print(summary(generate_anova_by_mean(data, 'control')))
+  print(summary(generate_anova_by_mean(data,'open')))
+  print(summary(generate_anova_by_mean(data,'size')))
+}
+
 # not particularly useful up above, but handy for having during test period. 
 generate_anova <- function(data, metaphor_filter) {
   return(aov(normalized_scores ~ condition, data=filter(data, metaphor_measure==metaphor_filter)))
+}
+
+generate_anova_by_mean <- function(data, metaphor_filter) {
+  # normalized SCORE not normalized scoreS
+  return(aov(normalized_score ~ condition, data=filter(data, metaphor_measure==metaphor_filter)))
 }
 ```
 
@@ -423,6 +455,98 @@ plot_the_thing(total_entity)
 # average p values of BOOTSTRAPPED data
 average_ps(total_entity, 100)
 ```
+
+
+## Power Analysis
+```{r}
+#pwr.anova.test(k = , n = , f = , sig.level = , power = )
+#where k is the number of groups and n is the common sample size in each group.
+#For a one-way ANOVA effect size is measured by f where
+# Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
+pwr.anova.test(k=3, n=20, sig.level=0.15, f=0.25)
+```
+Zoinks that ain't great. 
+
+
+### Other Exploratory Analyses
+#### 1. Just look at top three metaphors for each condition
+```{r}
+compare <- function(orig, manip1, manip2) {
+  original <- orig$metaphor_measure[1:3]
+  manip1 <- manip1$metaphor_measure[1:3]
+  manip2 <- manip2$metaphor_measure[1:3]
+  df <- data.frame(original, manip1, manip2)
+  return(df)
+}
+```
+
+#### 2. Look at variances of metaphors for each condition
+we can do this by just adding the variance to each of our original datasets
+```{r}
+# playing with some graphs
+ggplot(total_unpolite, aes(x=normalized_score, y=metaphor_variance, 
+                           shape=condition, 
+                           color=condition,
+                           size=condition)) +
+  geom_point()
+
+ggplot(total_audience, aes(x=normalized_score, y=metaphor_variance, 
+                           shape=condition, 
+                           color=condition,
+                           size=condition)) +
+  geom_point()
+
+ggplot(total_entity, aes(x=normalized_score, y=metaphor_variance, 
+                           shape=condition, 
+                           color=condition,
+                           size=condition)) +
+  geom_point()
+```
+Looks like there's really not much to it. Weak correlation at best.
+Checking the rsq:
+```{r}
+rsq <- function(x, y) {
+  cor(x, y)  ^ 2
+}
+
+rsq(total_unpolite$normalized_score, total_unpolite$metaphor_variance)
+rsq(total_audience$normalized_score, total_audience$metaphor_variance)
+rsq(total_entity$normalized_score, total_entity$metaphor_variance)
+
+# But what about when we BOOTSTRAP IT
+rsq_bootstrapped <- function(data, n) {
+  avg_measure <- c()
+  for(i in 1:n) {
+    bootstrapped_data <- generate_bootstrapped_data(data, 15)
+    bootstrapped_rsq <- rsq(data$normalized_score, data$metaphor_variance)
+    avg_measure <- c(avg_measure, bootstrapped_rsq)
+  }
+  return(mean(avg_measure))  
+}
+
+rsq_bootstrapped(total_unpolite, 100)
+rsq_bootstrapped(total_audience, 100)
+rsq_bootstrapped(total_entity, 100)
+```
+lol terrible. 
+
+#### 3. Bootstrap based on the means
+```{}
+# messy but bootstrapping based on means means we gotta do it
+test_p_bootstrap_by_means <- function(data, metaphor_measure, n) {
+  avg_measure <- c()
+  for(i in 1:n) {
+    bootstrapped_data <- generate_bootstrapped_data(data, 50)
+    bootstrapped_p <- summary(generate_anova_by_mean(bootstrapped_data, metaphor_measure))[[1]][["Pr(>F)"]][1]
+    avg_measure <- c(avg_measure, bootstrapped_p)
+  }
+  return(mean(avg_measure))  
+}
+
+#test_p_bootstrap_by_means(total_unpolite, "control", 100)
+```
+OK this doesn't work because we have such a small amount of data (means) that we're basically
+guaranteed to sample all of them.
 
 
 
