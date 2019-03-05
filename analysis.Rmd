@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggplot2)
 library(pwr)
+library(ordinal)
 ```
 
 AA = "available audience"
@@ -29,15 +30,15 @@ Load these bad larrys
 Annoyingly can't create dynamically named variables in R AFAIK, so manual
 ```{r}
 condition_names <- c('aao', 'aas', 'aaop', 'eo','ec','es','uo','uf','ut')
-aao <- read.csv('AAO_copy.csv')
-aas <- read.csv('AAS_copy.csv')
-aaop <- read.csv('AAOP_copy.csv')
-eo <- read.csv('EO_copy.csv')
-ec <- read.csv('EC_copy.csv')
-es <- read.csv('ES_copy.csv')
-uo <- read.csv('UO_copy.csv')
-ut <- read.csv('UT_copy.csv')
-uf <- read.csv('UF_copy.csv')
+aao <- read.csv('aao_2')
+aas <- read.csv('aas_2.csv')
+aaop <- read.csv('aaop_2.csv')
+eo <- read.csv('eo_2.csv')
+ec <- read.csv('ec_2.csv')
+es <- read.csv('es_2.csv')
+uo <- read.csv('uo_2.csv')
+ut <- read.csv('ut_2.csv')
+uf <- read.csv('uf_2.csv')
 ```
 
 First step, collapse responses into metaphor-y responses. 
@@ -297,7 +298,7 @@ transpose_df <- function(data, transpose_var="metaphor_measure") {
 
 Let's check to see, for example, how much the variation in 'closeness' is dependent on our condition
 ```{r}
-unpolite_closeness_aov <- aov(normalized_scores ~ condition, data=filter(total_unpolite, metaphor_measure=='closeness'))
+unpolite_closeness_aov <- aov(normalized_scores ~ condition, data=filter(total_unpolite, metaphor_measure=='control'))
 summary(unpolite_closeness_aov)
 ```
 
@@ -347,8 +348,6 @@ print('entity')
 generate_anovas(total_entity)
 ```
 
-
-###TODO: MANOVAS // compare between groups??
 
 
 ### Bootstrapping the ~Data~
@@ -436,7 +435,7 @@ average_ps <- function(data, n) {
 print_anova_significance(total_unpolite)
 plot_the_thing(total_unpolite)
 # average p values of BOOTSTRAPPED data
-average_ps(total_unpolite, 100)
+# average_ps(total_unpolite, 100)
 ```
 
 
@@ -445,7 +444,7 @@ average_ps(total_unpolite, 100)
 print_anova_significance(total_audience)
 plot_the_thing(total_audience)
 # average p values of BOOTSTRAPPED data
-average_ps(total_audience, 100)
+# average_ps(total_audience, 100)
 ```
 
 # "Entity"
@@ -453,27 +452,21 @@ average_ps(total_audience, 100)
 print_anova_significance(total_entity)
 plot_the_thing(total_entity)
 # average p values of BOOTSTRAPPED data
-average_ps(total_entity, 100)
+# average_ps(total_entity, 100)
 ```
 
 
 ## Power Analysis
 ```{r}
 get_avg_participants_per_condition <- function(data1, data2, data3) {
-  return(mean(mean(data1$Total)/2, mean(data2$Total)/2, mean(data3$Total)/2))
+  return(mean(c(mean(data1$Total), mean(data2$Total), mean(data3$Total))))
 }
+```
 
-#pwr.anova.test(k = , n = , f = , sig.level = , power = )
-#where k is the number of groups and n is the common sample size in each group.
-#For a one-way ANOVA effect size is measured by f where
-# Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
-pwr.anova.test(k=3, n=20, sig.level=0.05, f=0.25)
-```
-Zoinks that ain't great. We need to up our sample size! 
-```{r}
-pwr.anova.test(k=3, sig.level=0.05, f=0.25, power=0.8)
-```
-To *52* participants per group (survey) the look of it! 
+pwr.anova.test(k = , n = , f = , sig.level = , power = )
+where k is the number of groups and n is the common sample size in each group.
+For a one-way ANOVA effect size is measured by f where
+Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
 
 Right now we have powers of:
 ```{r}
@@ -549,7 +542,7 @@ rsq_bootstrapped(total_entity, 100)
 lol terrible. 
 
 #### 3. Bootstrap based on the means
-```{}
+```{r}
 # messy but bootstrapping based on means means we gotta do it
 test_p_bootstrap_by_means <- function(data, metaphor_measure, n) {
   avg_measure <- c()
@@ -565,6 +558,124 @@ test_p_bootstrap_by_means <- function(data, metaphor_measure, n) {
 ```
 OK this doesn't work because we have such a small amount of data (means) that we're basically
 guaranteed to sample all of them.
+
+
+
+I just realized all my analysis is wrong. I'm looking at mean ranges, essentially. I need
+to be looking at densities by group. Explore density plots with normalized score.
+
+Use grouped original data maybe? And look at densities?
+
+Need to manipulate data to reconstruct participant rankings
+** Dummy code one group at a time to see effects of only one group**?
+Turn ranking into scores
+
+then filter by group
+make “gesture condition” be deciding thing (‘female’ in example)
+measure effect of gesture on group score
+
+## Plot by density of metaphor answers
+```{r}
+conflict_data <- total_unpolite %>%
+  filter(metaphor_measure == 'conflict')
+
+plot_the_density <- function(data) {
+  ggplot(data, aes(x=metaphor_measure, fill=condition)) + 
+      geom_density() + 
+      facet_wrap(~metaphor_measure, scale="free")
+}
+
+plot_the_density(conflict_data)
+```
+I want to make a graph that shows that the number of people who ranked a 
+particular phrase as #1 is higher in density when we used a metaphor
+that we wanted to envoke that phrase.
+```{r}
+uo$condition <- "original"
+ut$condition <- "together"
+uf$condition <- "forced"
+t_unpolite <- rbind(uo, uf, ut)
+
+ggplot(t_unpolite, aes(x=metaphor_measure, y=normalized_score, fill=condition)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    facet_wrap(~metaphor_measure, scale="free")
+# cool, don't touch this. This plots the means, nifty! This is the overall scores. 
+# However, even more interesting than that is the densities of rankings
+```
+
+Transform data to ranking so X1=1, X2=2, etc
+```{r}
+t_uo <- gather(uo, "ranking", "num_ranking", 2:11) 
+t_uo$ranking <- as.numeric(gsub("[^0-9]", "", t_uo$ranking))
+t_uf <- gather(uf, "ranking", "num_ranking", 2:11)
+t_uf$ranking <- as.numeric(gsub("[^0-9]", "", t_uf$ranking))
+t_ut <- gather(ut, "ranking", "num_ranking", 2:11)
+t_ut$ranking <- as.numeric(gsub("[^0-9]", "", t_ut$ranking))
+t_utotal <- rbind(t_uo, t_uf, t_ut)
+
+t_utotal_select <- select(t_utotal, metaphor_measure, condition, ranking, num_ranking)
+
+# WAIT SOMEHOW THIS IS PERFECT OH GOD
+ggplot(t_utotal_select, aes(x=ranking, y=num_ranking, fill=condition)) + 
+    geom_density(alpha=0.3, stat="identity") + 
+    facet_wrap(~metaphor_measure, scale="free")
+DO_NOT_DELETE <- t_utotal_select
+
+# to do a density plot we have to change our data to have num_ranking rows of each 
+# example of ranking
+# fuck it let's make a new dataframe baby
+make_new_data <- function(data) {
+  new_data <- data.frame()
+  for(row in 1:nrow(data)) {
+    for(j in 1:data[[row,4]]) {
+      new_data <- rbind(new_data, data[row,])
+    }
+  }
+  return(new_data)
+}
+x <- make_new_data(t_utotal_select)
+
+## test with just one condition
+ggplot(filter(x, metaphor_measure == "conflict"), aes(x=ranking, fill=condition)) +
+  geom_histogram(position="dodge", binwidth=1) + 
+  geom_density(alpha=0.3)
+
+
+ggplot(x, aes(x=ranking, fill=condition)) + 
+  geom_histogram(position="dodge", binwidth = 1) +
+  facet_wrap(~metaphor_measure, scale="free")
+
+
+ggplot(x, aes(x=ranking, y=num_ranking, fill=condition)) +
+  geom_histogram(alpha=0.3, stat="identity", position="dodge") +
+  facet_wrap(~metaphor_measure, scale="free")
+
+
+
+
+ggplot(t_utotal_select, aes(x=ranking, y=num_ranking, fill=condition)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    facet_wrap(~metaphor_measure, scale="free")
+
+ggplot(t_utotal_select, aes(x=ranking, y=num_ranking, fill=condition)) + 
+    geom_box(stat="identity", alpha=0.3) + 
+    facet_wrap(~metaphor_measure, scale="free")
+```
+See this actually looks quite nice and appropriately visualizes how the different densities of responses fit in
+
+Now try doing ordinal ranked response analysis
+```{r}
+t_utotal_select$num_ranking <- factor(t_utotal_select$num_ranking)
+ordinal_mod <- clm(num_ranking ~ metaphor_measure * condition, data=t_utotal_select)
+ordinal_mod_no_cond <- clm(num_ranking ~ metaphor_measure * condition - condition, data=t_utotal_select)
+anova(ordinal_mod, ordinal_mod)
+summary(ordinal.mod)
+```
+
+
+
+
+
 
 
 

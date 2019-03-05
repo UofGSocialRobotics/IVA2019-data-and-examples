@@ -482,64 +482,62 @@ print('unpolite')</code></pre>
 <pre class="r"><code>generate_anovas(unpolite_bootstrapped)</code></pre>
 <pre><code>## [1] &quot;closeness, conflict, control, open, size&quot;
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2  0.491  0.2455   0.497  0.613
-## Residuals   33 16.314  0.4944               
+## condition    2  1.819  0.9095    0.97  0.392
+## Residuals   26 24.368  0.9372               
+##             Df Sum Sq Mean Sq F value Pr(&gt;F)  
+## condition    2 0.2520 0.12602   3.912  0.036 *
+## Residuals   21 0.6765 0.03221                 
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2  0.036  0.0182   0.033  0.967
-## Residuals   25 13.612  0.5445               
+## condition    2 0.0322 0.01610   0.168  0.847
+## Residuals   24 2.3072 0.09613               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2 0.0129 0.00643    0.08  0.924
-## Residuals   30 2.4160 0.08053               
+## condition    2  0.050  0.0252   0.156  0.856
+## Residuals   31  5.017  0.1618               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2 0.4222 0.21112   2.141   0.14
-## Residuals   23 2.2680 0.09861               
-##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2   0.17  0.0849   0.164   0.85
-## Residuals   24  12.44  0.5185</code></pre>
+## condition    2  1.133  0.5666   1.929  0.161
+## Residuals   33  9.694  0.2938</code></pre>
 <pre class="r"><code>audience_bootstrapped &lt;- generate_bootstrapped_data(total_audience, 150)
 print('audience')</code></pre>
 <pre><code>## [1] &quot;audience&quot;</code></pre>
 <pre class="r"><code>generate_anovas(audience_bootstrapped)</code></pre>
 <pre><code>## [1] &quot;closeness, conflict, control, open, size&quot;
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2  0.582  0.2913   0.992  0.384
-## Residuals   27  7.925  0.2935               
+## condition    2  0.573  0.2863   1.098  0.345
+## Residuals   33  8.604  0.2607               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2 0.0502 0.02508   0.481  0.624
-## Residuals   23 1.1998 0.05216               
+## condition    2 0.0453 0.02265   0.504   0.61
+## Residuals   28 1.2588 0.04496               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2 0.0663 0.03314   0.745  0.486
-## Residuals   23 1.0238 0.04451               
+## condition    2 0.2051 0.10253   1.984  0.158
+## Residuals   26 1.3436 0.05168               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2  0.062 0.03091   0.163   0.85
-## Residuals   30  5.673 0.18910               
+## condition    2  0.026 0.01297   0.096  0.909
+## Residuals   25  3.366 0.13466               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2   1.85   0.923   0.746  0.482
-## Residuals   32  39.58   1.237</code></pre>
+## condition    2  0.509  0.2544     0.3  0.744
+## Residuals   23 19.508  0.8482</code></pre>
 <pre class="r"><code>entity_bootstrapped &lt;- generate_bootstrapped_data(total_entity, 150)
 print('entity')</code></pre>
 <pre><code>## [1] &quot;entity&quot;</code></pre>
 <pre class="r"><code>generate_anovas(entity_bootstrapped)</code></pre>
 <pre><code>## [1] &quot;closeness, conflict, control, open, size&quot;
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2 0.0715 0.03575   0.289  0.752
-## Residuals   20 2.4726 0.12363               
+## condition    2  0.075 0.03749   0.247  0.783
+## Residuals   29  4.401 0.15176               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2  0.855  0.4276   1.109  0.344
-## Residuals   29 11.184  0.3857               
-##             Df Sum Sq Mean Sq F value  Pr(&gt;F)   
-## condition    2  2.329  1.1647    8.48 0.00154 **
-## Residuals   25  3.434  0.1373                   
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## condition    2  0.178 0.08909   0.444  0.646
+## Residuals   28  5.622 0.20080               
 ##             Df Sum Sq Mean Sq F value Pr(&gt;F)
-## condition    2 0.0106 0.00530   0.111  0.896
-## Residuals   25 1.1982 0.04793               
-##             Df Sum Sq Mean Sq F value Pr(&gt;F)  
-## condition    2   7.14   3.572   3.699 0.0346 *
-## Residuals   36  34.77   0.966                 
-## ---
-## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1</code></pre>
+## condition    2  0.081 0.04069   0.371  0.693
+## Residuals   29  3.177 0.10954               
+##             Df Sum Sq Mean Sq F value Pr(&gt;F)
+## condition    2  0.180 0.08998   1.122  0.342
+## Residuals   24  1.925 0.08019               
+##             Df Sum Sq Mean Sq F value Pr(&gt;F)
+## condition    2  0.816  0.4079    0.69  0.511
+## Residuals   25 14.785  0.5914</code></pre>
 </div>
 <div id="show-me-what-matters" class="section level3">
 <h3>Show Me What Matters</h3>
@@ -601,15 +599,15 @@ average_ps &lt;- function(data, n) {
 <pre class="r"><code># average p values of BOOTSTRAPPED data
 average_ps(total_unpolite, 100)</code></pre>
 <pre><code>## [1] &quot;closeness&quot;
-## [1] 0.40119
+## [1] 0.4077336
 ## [1] &quot;control&quot;
-## [1] 0.2957968
+## [1] 0.3658611
 ## [1] &quot;size&quot;
-## [1] 0.4897785
+## [1] 0.4630857
 ## [1] &quot;open&quot;
-## [1] 0.4244583
+## [1] 0.4359514
 ## [1] &quot;conflict&quot;
-## [1] 0.3729189</code></pre>
+## [1] 0.4041855</code></pre>
 </div>
 <div id="available-audience" class="section level1">
 <h1>“Available Audience”</h1>
@@ -629,15 +627,15 @@ average_ps(total_unpolite, 100)</code></pre>
 <pre class="r"><code># average p values of BOOTSTRAPPED data
 average_ps(total_audience, 100)</code></pre>
 <pre><code>## [1] &quot;closeness&quot;
-## [1] 0.4870833
+## [1] 0.496127
 ## [1] &quot;control&quot;
-## [1] 0.5157202
+## [1] 0.4292489
 ## [1] &quot;size&quot;
-## [1] 0.4915583
+## [1] 0.5075916
 ## [1] &quot;open&quot;
-## [1] 0.4975275
+## [1] 0.5176823
 ## [1] &quot;conflict&quot;
-## [1] 0.3873004</code></pre>
+## [1] 0.3895244</code></pre>
 </div>
 <div id="entity" class="section level1">
 <h1>“Entity”</h1>
@@ -657,15 +655,89 @@ average_ps(total_audience, 100)</code></pre>
 <pre class="r"><code># average p values of BOOTSTRAPPED data
 average_ps(total_entity, 100)</code></pre>
 <pre><code>## [1] &quot;closeness&quot;
-## [1] 0.4806104
+## [1] 0.4841218
 ## [1] &quot;control&quot;
-## [1] 0.3817648
+## [1] 0.3795236
 ## [1] &quot;size&quot;
-## [1] 0.4305596
+## [1] 0.4574084
 ## [1] &quot;open&quot;
-## [1] 0.3354541
+## [1] 0.2914429
 ## [1] &quot;conflict&quot;
-## [1] 0.511725</code></pre>
+## [1] 0.4886846</code></pre>
+<div id="power-analysis" class="section level2">
+<h2>Power Analysis</h2>
+<pre class="r"><code>get_avg_participants_per_condition &lt;- function(data1, data2, data3) {
+  return(mean(mean(data1$Total)/2, mean(data2$Total)/2, mean(data3$Total)/2))
+}
+
+#pwr.anova.test(k = , n = , f = , sig.level = , power = )
+#where k is the number of groups and n is the common sample size in each group.
+#For a one-way ANOVA effect size is measured by f where
+# Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
+pwr.anova.test(k=3, n=20, sig.level=0.05, f=0.25)</code></pre>
+<pre><code>## 
+##      Balanced one-way analysis of variance power calculation 
+## 
+##               k = 3
+##               n = 20
+##               f = 0.25
+##       sig.level = 0.05
+##           power = 0.3744311
+## 
+## NOTE: n is number in each group</code></pre>
+<p>Zoinks that ain’t great. We need to up our sample size!</p>
+<pre class="r"><code>pwr.anova.test(k=3, sig.level=0.05, f=0.25, power=0.8)</code></pre>
+<pre><code>## 
+##      Balanced one-way analysis of variance power calculation 
+## 
+##               k = 3
+##               n = 52.3966
+##               f = 0.25
+##       sig.level = 0.05
+##           power = 0.8
+## 
+## NOTE: n is number in each group</code></pre>
+<p>To <em>52</em> participants per group (survey) the look of it!</p>
+<p>Right now we have powers of:</p>
+<pre class="r"><code>print(&quot;audience:&quot;)</code></pre>
+<pre><code>## [1] &quot;audience:&quot;</code></pre>
+<pre class="r"><code>pwr.anova.test(k=3, n=get_avg_participants_per_condition(aao, aas, aaop), sig.level=0.05, f=0.25)</code></pre>
+<pre><code>## 
+##      Balanced one-way analysis of variance power calculation 
+## 
+##               k = 3
+##               n = 23
+##               f = 0.25
+##       sig.level = 0.05
+##           power = 0.426448
+## 
+## NOTE: n is number in each group</code></pre>
+<pre class="r"><code>print(&quot;entity:&quot;)</code></pre>
+<pre><code>## [1] &quot;entity:&quot;</code></pre>
+<pre class="r"><code>pwr.anova.test(k=3, n=get_avg_participants_per_condition(eo, es, ec), sig.level=0.05, f=0.25)</code></pre>
+<pre><code>## 
+##      Balanced one-way analysis of variance power calculation 
+## 
+##               k = 3
+##               n = 22.5
+##               f = 0.25
+##       sig.level = 0.05
+##           power = 0.4179
+## 
+## NOTE: n is number in each group</code></pre>
+<pre class="r"><code>print(&quot;unpolite:&quot;)</code></pre>
+<pre><code>## [1] &quot;unpolite:&quot;</code></pre>
+<pre class="r"><code>pwr.anova.test(k=3, n=get_avg_participants_per_condition(uo, uf, ut), sig.level=0.05, f=0.25)</code></pre>
+<pre><code>## 
+##      Balanced one-way analysis of variance power calculation 
+## 
+##               k = 3
+##               n = 20.9
+##               f = 0.25
+##       sig.level = 0.05
+##           power = 0.3902099
+## 
+## NOTE: n is number in each group</code></pre>
 <div id="other-exploratory-analyses" class="section level3">
 <h3>Other Exploratory Analyses</h3>
 <div id="just-look-at-top-three-metaphors-for-each-condition" class="section level4">
@@ -747,6 +819,9 @@ test_p_bootstrap_by_means &lt;- function(data, metaphor_measure, n) {
 
 #test_p_bootstrap_by_means(total_unpolite, &quot;control&quot;, 100)</code></pre>
 <p>OK this doesn’t work because we have such a small amount of data (means) that we’re basically guaranteed to sample all of them.</p>
+<p>I just realized all my analysis is wrong. I’m looking at mean ranges, essentially. I need to be looking at densities by group. Explore density plots with normalized score.</p>
+<p>Use grouped original data maybe? And look at densities?</p>
+</div>
 </div>
 </div>
 </div>
