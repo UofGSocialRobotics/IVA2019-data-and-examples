@@ -1,0 +1,320 @@
+```{r}
+library(dplyr)
+library(ggplot2)
+```
+
+## New Analysis -- Within-Subject
+How often do metaphors co-occur above a particular ranking, within-individual
+how often are distractors low and things we think are inferrable high
+
+```{r}
+all_metas = c("Everybody", "WorkTogether", "Tension", "Disagree", "ManyPeople",
+              "GetAlong", "Likes", "Annoyed", "Control", "Feedback")
+
+drop_cols <- function(data) {
+  drops <- c("Email.Address", "Start.Date", "End.Date", "IP.Address", "Collector.ID",
+             "First.Name", "Last.Name", "Custom.Data.1", "Respondent.ID")
+  return(data[, !(names(data) %in% drops)])
+}
+
+rename_cols <- function(data) {
+  names <- colnames(data)
+  for(col in 1:ncol(data)) {
+    if(data[1, col] == "She is referring to everybody in the group") {
+      names[col] <- "Everybody"
+    } else if(data[1, col] == "There is tension between people in the group") {
+      names[col] <- "Tension"
+    } else if(data[1, col] == "People in the group are working together to solve a problem") {
+      names[col] <- "WorkTogether"
+    } else if(data[1, col] == "People in the group disagree with one another") {
+      names[col] <- "Disagree"
+    } else if(data[1, col] == "This group consists of many people") {
+      names[col] <- "ManyPeople"
+    } else if(data[1, col] == "People in the group generally get along") {
+      names[col] <- "GetAlong"
+    } else if(data[1, col] == "The speaker likes the people in the group") {
+      names[col] <- "Likes"
+    } else if(as.character(data[1, col]) == "The speaker is in annoyed with the group") {
+      names[col] <- "Annoyed"
+    } else if(data[1, col] == "The speaker is in control of the group") {
+      names[col] <- "Control"
+    } else if(data[1, col] == "The speaker is open to feedback from the group") {
+      names[col] <- "Feedback"
+    }
+  }
+  # some bug with "annoyed" not feeding in correctly
+  must_be_named <- c("Respondent.ID", "WorkTogether", "Everybody", "Tension", "Disagree",
+                     "ManyPeople", "GetAlong", "Likes", "Annoyed", "Control", "Feedback")
+  for(i in 1:length(names)) {
+    if(!names[i] %in% must_be_named) {
+      names[i] <- "Annoyed"
+    }
+  }
+  
+  # actually change the column names
+  colnames(data) <- names
+  data <- data[-1,]
+  
+  # convert to numerics
+  # fuck it nothing is working do it the old fashioned way.
+  data$Tension <- as.numeric(as.character(data$Tension))
+  data$WorkTogether <- as.numeric(as.character(data$WorkTogether))
+  data$Everybody <- as.numeric(as.character(data$Everybody))
+  data$Disagree <- as.numeric(as.character(data$Disagree))
+  data$ManyPeople <- as.numeric(as.character(data$ManyPeople))
+  data$GetAlong <- as.numeric(as.character(data$GetAlong))
+  data$Likes <- as.numeric(as.character(data$Likes))
+  data$Annoyed <- as.numeric(as.character(data$Annoyed))
+  data$Control <- as.numeric(as.character(data$Control))
+  data$Feedback <- as.numeric(as.character(data$Feedback))
+  
+  return(data)
+}
+
+
+drop_incomplete <- function(data) {
+  data <- data %>%
+    filter(WorkTogether != "" & 
+           Feedback != "" & 
+           Everybody != "" &
+           Tension != "" &
+           Disagree != "" &
+           ManyPeople != "" &
+           GetAlong != "" &
+           Likes != "" &
+           Annoyed != "" &
+           Control != "")
+}
+```
+
+Read in the data
+```{r}
+uf_indiv <- read.csv('uf_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+uo_indiv <- read.csv('uo_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+ut_indiv <- read.csv('ut_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+aao_indiv <- read.csv('aao_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+aas_indiv <- read.csv('aas_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+aaop_indiv <- read.csv('aaop_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+eo_indiv <- read.csv('eo_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+ec_indiv <- read.csv('ec_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+es_indiv <- read.csv('es_individuals.csv') %>%
+  drop_cols %>%
+  rename_cols %>% 
+  drop_incomplete
+```
+
+
+Now want to see the average difference between related metaphors. 
+
+i.e. we expect "Tension" and "Disagree" to be somewhat near each other for this case
+and we expect Tension and Get Along to be quite far. For the original case we're
+interested in the average distance between Tension and Work Together. 
+```{r}
+compute_diffs <- function(data, meta1, meta2) {
+  meta1_scores <- data[[meta1]]
+  meta2_scores <- data[[meta2]]
+  return(mean(abs(meta1_scores - meta2_scores)))
+}
+```
+
+Create dissimilarity matrix
+get data to look like 
+Var1      Var2     value
+Tension   Tension    0
+GetAlong  Tension    1.42
+Disagree  Tension    0.851
+...
+
+```{r}
+
+# thanks internet
+scale_0_1 <- function(x) { 
+  (x-min(x))/(max(x)-min(x))
+}
+
+
+## Go through and populate with metaphors and difference values
+create_difference_matrix <- function(data, compare=all_metas) {
+  difference_table <- data.frame(
+    Meta1 = c(""),
+    Meta2 = c(""),
+    difference = c(""),
+    stringsAsFactors=FALSE
+  )
+  
+  metas = colnames(data)
+  metas <- metas[metas %in% compare]
+  
+  for(metaphor in metas) {
+    for(meta in rev(metas)) {
+      diff <- compute_diffs(data, meta, metaphor)
+      row <- c(metaphor, meta, diff)
+      difference_table <- rbind(difference_table, row)  
+    }
+  }
+  
+  # difference_matrix$difference <- as.numeric(as.character(difference_matrix$difference))
+  difference_table <- difference_table[-1,]
+  # there is some problem here with the difference numeric
+  difference_table$difference <- as.numeric(as.character(difference_table$difference))
+  difference_table$difference <- scale_0_1(difference_table$difference)
+  return(difference_table)
+}
+
+```
+
+```{r}
+plot_diff_matrix_purple <- function(matrix, t) {
+  plot_diff_matrix(matrix, "darkorchid4", "aliceblue", "honeydew1", t)
+}
+
+plot_diff_matrix_green <- function(matrix, t) {
+  plot_diff_matrix(matrix, "darkgreen", "white", "honeydew1", t)
+}
+
+plot_diff_matrix_pink <- function(matrix, t) {
+  plot_diff_matrix(matrix, "hotpink4", "aliceblue", "mistyrose1", t)
+}
+
+plot_diff_matrix_blue <- function(matrix, t="") {
+  plot_diff_matrix(matrix, "royalblue4", "aliceblue", "slategray1", title=t)
+}
+
+plot_diff_matrix <- function(matrix, low_col, high_col, mid_col, title) {
+  ggplot(data=matrix, aes(x=Meta1, y=Meta2, fill=difference)) + 
+  geom_tile(color="white") +
+  scale_fill_gradient2(low=low_col, high=high_col, mid=mid_col,
+                       midpoint=0.5, space="Lab") +
+  theme_minimal() +
+  coord_fixed() +
+  theme_bw() +
+  theme(axis.text.x=element_text(angle=90),
+      axis.ticks=element_blank(),
+      axis.line=element_blank(),
+      panel.border=element_blank(),
+      panel.grid.major=element_line(color='#eeeeee')) +
+    ggtitle(title)
+}
+```
+
+
+Actually plot them for each one
+## "Unpolite"
+```{r}
+unpolite_metas <- c("WorkTogether", "Tension", "Disagree", "GetAlong", "Annoyed")
+```
+
+```{r}
+u_orig_diff_plot <- create_difference_matrix(uo_indiv) %>%
+  plot_diff_matrix_blue("Original")
+
+u_orig_diff_plot
+```
+
+```{r}
+u_forced_diff_plot <- create_difference_matrix(uf_indiv) %>%
+  plot_diff_matrix_blue("Forced")
+
+u_forced_diff_plot
+```
+
+```{r}
+u_together_diff_plot <- create_difference_matrix(ut_indiv) %>%
+  plot_diff_matrix_blue("Together")
+
+u_together_diff_plot
+```
+
+## "Audience"
+```{r}
+audience_metas <- c("Everybody", "ManyPeople", "GetAlong", "Control", "Feedback", "Likes")
+```
+
+```{r}
+plot_diff_matrix_blue(create_difference_matrix(aao_indiv), "Original")
+```
+
+```{r}
+plot_diff_matrix_blue(create_difference_matrix(aas_indiv), "Small")
+```
+
+```{r}
+plot_diff_matrix_blue(create_difference_matrix(aaop_indiv), "Open")
+```
+
+## "Entity"
+```{r}
+entity_metas <- c("Tension", "Disagree", "Likes", "Annoyed", "Control")
+```
+
+```{r}
+plot_diff_matrix_blue(create_difference_matrix(eo_indiv), "Original")
+```
+
+```{r}
+plot_diff_matrix_blue(create_difference_matrix(ec_indiv), "Chest")
+```
+
+```{r}
+plot_diff_matrix_blue(create_difference_matrix(es_indiv), "Separate")
+```
+
+
+
+
+
+## Average Mean Ranking
+```{r}
+get_avg_ranking <- function(data) {
+  ranked <- data.frame("metaphor", "avg_ranking", stringsAsFactors=FALSE)
+  ranked <- rbind(ranked, c("WorkTogether", as.numeric(as.character(mean(data$WorkTogether)))))
+  ranked <- rbind(ranked, c("Everybody", mean(data$Everybody)))
+  ranked <- rbind(ranked, c("Tension", mean(data$Tension)))
+  ranked <- rbind(ranked, c("Disagree", mean(data$Disagree)))
+  ranked <- rbind(ranked, c("ManyPeople", mean(data$ManyPeople)))
+  ranked <- rbind(ranked, c("GetAlong", mean(data$GetAlong)))
+  ranked <- rbind(ranked, c("Likes", mean(data$Likes)))
+  ranked <- rbind(ranked, c("Annoyed", mean(data$Annoyed)))
+  ranked <- rbind(ranked, c("Control", mean(data$Control)))
+  ranked <- rbind(ranked, c("Feedback", mean(data$Feedback)))
+  return(ranked[-1,])
+}
+
+uo_indiv_avg_rank_plot <- ggplot(get_avg_ranking(uo_indiv), aes(x=X.metaphor., y=X.avg_ranking.)) + 
+    geom_bar(stat="identity", position="dodge") 
+uo_indiv_avg_rank_plot
+
+uf_indiv_avg_rank_plot <- ggplot(get_avg_ranking(uf_indiv), aes(x=X.metaphor., y=X.avg_ranking.)) + 
+    geom_bar(stat="identity", position="dodge") 
+uf_indiv_avg_rank_plot
+
+ut_indiv_avg_rank_plot <- ggplot(get_avg_ranking(ut_indiv), aes(x=X.metaphor., y=X.avg_ranking.)) + 
+    geom_bar(stat="identity", position="dodge") 
+ut_indiv_avg_rank_plot
+
+
+```

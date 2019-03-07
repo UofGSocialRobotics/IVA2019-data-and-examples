@@ -30,7 +30,7 @@ Load these bad larrys
 Annoyingly can't create dynamically named variables in R AFAIK, so manual
 ```{r}
 condition_names <- c('aao', 'aas', 'aaop', 'eo','ec','es','uo','uf','ut')
-aao <- read.csv('aao_2')
+aao <- read.csv('aao_2.csv')
 aas <- read.csv('aas_2.csv')
 aaop <- read.csv('aaop_2.csv')
 eo <- read.csv('eo_2.csv')
@@ -72,6 +72,38 @@ group_by_metaphor <- function(data) {
       # for some reason it's not recognizing the annoyed case, so let's throw it in the else
       # cause that seems safe.
       data$metaphor_measure[row] <- "control"
+    }
+  }
+  return(data)
+}
+
+group_by_statement <- function(data) {
+  data$metaphor_measure <- ""
+  for(row in 1:nrow(data)) {
+    if (data$Answer.Choices[row] == "People in the group are working together to solve a problem") {
+               data$metaphor_measure[row] <- "WorkTogether"
+    } else if (data$Answer.Choices[row] == "There is tension between people in the group") {
+              data$metaphor_measure[row] <- "Tension"
+    } else if (data$Answer.Choices[row] == "She is referring to everybody in the group") {
+              data$metaphor_measure[row] <- "Everybody"
+    } else if (data$Answer.Choices[row] == "The speaker likes the people in the group") {
+              data$metaphor_measure[row] <- "Likes"
+    } else if (data$Answer.Choices[row] == "The speaker is in annoyed with the group") {
+              data$metaphor_measure[row] <- "Annoyed"
+    } else if (data$Answer.Choices[row] == "People in the group generally get along") {
+              data$metaphor_measure[row] <- "GetAlong"
+    } else if (data$Answer.Choices[row] == "People in the group disagree with one another") {
+               data$metaphor_measure[row] <- "Disagree"
+    } else if (data$Answer.Choices[row] == "This group consists of many people") {
+              data$metaphor_measure[row] <- "ManyPeople"
+    } else if (data$Answer.Choices[row] == "The speaker is open to feedback from the group") {
+      data$metaphor_measure[row] <- "Feedback"
+    } else if (data$Answer.Choices[row] == "The speaker is in control of the group") {
+              data$metaphor_measure[row] <- "Control"
+    } else {
+      # for some reason it's not recognizing the annoyed case, so let's throw it in the else
+      # cause that seems safe.
+      data$metaphor_measure[row] <- "Annoyed"
     }
   }
   return(data)
@@ -144,7 +176,7 @@ So let's transform all our old data so it's nice and bucketed, and sorted by sco
 ```{r}
 transform_data <- function(data) {
   transformed_data <- data %>%
-    group_by_metaphor() %>%
+    group_by_statement() %>%
     bucket_by_group() %>%
     append_scores() 
   return(transformed_data[rev(order(transformed_data$normalized_score)),])
@@ -153,14 +185,23 @@ transform_data <- function(data) {
 aao <- transform_data(aao)
 aas <- transform_data(aas)
 aaop <- transform_data(aaop)
+aao$condition <- "original"
+aas$condition <- "small"
+aaop$condition <- "open"
 
 eo <- transform_data(eo)
 ec <- transform_data(ec)
 es <- transform_data(es)
+eo$condition <- "original"
+es$condition <- "separated"
+ec$condition <- "chest"
 
 uo <- transform_data(uo)
 uf <- transform_data(uf)
 ut <- transform_data(ut)
+uo$condition <- "original"
+uf$condition <- "forced"
+ut$condition <- "together"
 ```
 
 
@@ -242,8 +283,92 @@ scale_and_normalize <- function(orig_data, cond1_data, cond1_name, cond2_data, c
  total_audience <- scale_and_normalize(aao, aas, "small", aaop, "open")
 ```
 
-## Plot 'Em and Load 'Em
+## Plot these bad boys
 
+### Means
+For a general idea.
+```{r}
+unpolite_mean_plot <- ggplot(total_unpolite, aes(x=metaphor_measure, y=normalized_score, fill=condition)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    facet_wrap(~metaphor_measure, scale="free")
+
+audience_mean_plot <- ggplot(total_audience, aes(x=metaphor_measure, y=normalized_score, fill=condition)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    facet_wrap(~metaphor_measure, scale="free")
+
+entity_mean_plot <- ggplot(total_entity, aes(x=metaphor_measure, y=normalized_score, fill=condition)) + 
+    geom_bar(stat="identity", position="dodge") + 
+    facet_wrap(~metaphor_measure, scale="free")
+```
+
+### Densities
+Now plot the densities of each response.
+First make a function that creates a dataframe that reflects something slightly different in the data
+```{r}
+pull_ranking <- function(data) {
+  data <- gather(data, "ranking", "num_ranking", 2:11)  
+  data$ranking <- as.numeric(gsub("[^0-9]", "", data$ranking))
+  return(data)
+}
+
+pull_rankings <- function(data1, data2, data3) {
+  data1 <- pull_ranking(data1)
+  data2 <- pull_ranking(data2)
+  data3 <- pull_ranking(data3)
+  total <- rbind(data1, data2, data3)
+  return(select(total, metaphor_measure, condition, ranking, num_ranking))
+}
+
+make_density_data <- function(data) {
+  new_data <- data.frame()
+  for(row in 1:nrow(data)) {
+    for(j in 1:data[[row,4]]) {
+      new_data <- rbind(new_data, data[row,])
+    }
+  }
+  return(new_data)
+}
+```
+
+Now we can actually plot the distribution of ranked responses.
+```{r}
+make_density_plot <- function(data1, data2, data3) {
+  plot <- ggplot(make_density_data(pull_rankings(data1, data2, data3)),
+                           aes(x=ranking, fill=condition)) + 
+  geom_density(alpha=0.3, stat="density", adjust=0.65) +
+  facet_wrap(~metaphor_measure, scale="free")
+  return(plot)
+}
+
+make_density_plot_scaled <- function(data1, data2, data3) {
+  plot <- ggplot(make_density_data(pull_rankings(data1, data2, data3)),
+                           aes(x=ranking, fill=condition)) + 
+  geom_density(alpha=0.3, stat="density", adjust=0.65) +
+  facet_wrap(~metaphor_measure, scale="fixed")
+  return(plot)
+}
+```
+#### Unpolite Density:
+```{r}
+unpolite_density <- make_density_plot(uo, uf, ut)
+unpolite_density_scaled <- make_density_plot_scaled(uo, uf, ut)
+unpolite_density
+ggsave("unpolite_density.png", unpolite_density, width=8, height=5)
+unpolite_density_scaled
+```
+#### Audience Density:
+```{r}
+audience_density <- make_density_plot(aao, aas,aaop)
+audience_density
+```
+#### Entity Density
+```{r}
+entity_density <- make_density_plot(eo, es, ec)
+entity_density
+```
+
+### Plotting Range
+We can also effectively plot the "range" of responses using a boxplot.
 Our "outliers" are actually the most important part of our data, so let's make sure we visualize them as such:
 ```{r}
 # define the summary function to describe our stats the way we want
@@ -257,7 +382,7 @@ f <- function(x) {
 
 And now let's graph if up real style 
 ```{r}
-plot_the_thing <- function(data) {
+plot_range <- function(data) {
   data_plot <- ggplot(data, aes(x=metaphor_measure, y=normalized_scores, fill=condition)) + 
   stat_summary(fun.data=f, geom="boxplot", position="dodge2") + 
   facet_wrap(~metaphor_measure, scale="free")
@@ -265,41 +390,111 @@ plot_the_thing <- function(data) {
   return(data_plot)
 }
 
-unpolite_plot <- plot_the_thing(total_unpolite)
-audience_plot <- plot_the_thing(total_audience)
-entity_plot <- plot_the_thing(total_entity)
+unpolite_range <- plot_range(total_unpolite)
+audience_range <- plot_range(total_audience)
+entity_range <- plot_range(total_entity)
 ```
-Unpolite Plot:
+#### Unpolite Range:
 ```{r}
-unpolite_plot
+unpolite_range
 ```
-Audience Plot:
+#### Audience Range:
 ```{r}
-audience_plot
+audience_range
 ```
-Entity Plot
+#### Entity Range
 ```{r}
-entity_plot
+entity_range
 ```
 
 Great, that gives a better picture of everything together
 
 
 ## Stats on Stats on Stats
+
+### Power Analysis
 ```{r}
-transpose_df <- function(data, transpose_var="metaphor_measure") {
-  n <- data$transpose_var
-  data <- as.data.frame(t(data[,-1]))
-  colnames(data) <- n
-  data$transpose_var <- factor(row.names(data))
-  return(data)
+get_avg_participants_per_condition <- function(data1, data2, data3) {
+  return(mean(c(mean(data1$Total), mean(data2$Total), mean(data3$Total))))
 }
 ```
 
-Let's check to see, for example, how much the variation in 'closeness' is dependent on our condition
+pwr.anova.test(k = , n = , f = , sig.level = , power = )
+where k is the number of groups and n is the common sample size in each group.
+For a one-way ANOVA effect size is measured by f where
+Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
+
+Right now we have powers of:
 ```{r}
-unpolite_closeness_aov <- aov(normalized_scores ~ condition, data=filter(total_unpolite, metaphor_measure=='control'))
-summary(unpolite_closeness_aov)
+print("audience:")
+pwr.anova.test(k=3, n=get_avg_participants_per_condition(aao, aas, aaop), sig.level=0.05, f=0.25)
+print("entity:")
+pwr.anova.test(k=3, n=get_avg_participants_per_condition(eo, es, ec), sig.level=0.05, f=0.25)
+print("unpolite:")
+pwr.anova.test(k=3, n=get_avg_participants_per_condition(uo, uf, ut), sig.level=0.05, f=0.25)
+```
+So pretty good powers, all ~90%.
+
+### Effects of Condition on Metaphoric Interpretation
+Let's check to see, for example, how much the variation in 'closeness' is dependent on our condition
+
+I want to know the effect of the condition on the scores by metaphor
+```{r}
+## Code the categorical variables
+code_metaphors <- function(data) {
+  dummy_data <- data
+  for(row in 1:nrow(data)){
+    if(dummy_data[[row, 1]] == 'closeness') {
+      dummy_data[[row, 1]] <- 0
+    } else if (dummy_data[[row, 1]] == 'control'){
+      dummy_data[[row, 1]] <- 1
+    } else if (dummy_data[[row, 1]] == 'size'){
+      dummy_data[[row, 1]] <- 2
+    } else if (dummy_data[[row, 1]] == 'open'){
+      dummy_data[[row, 1]] <- 3
+    } else if (dummy_data[[row, 1]] == 'conflict'){
+      dummy_data[[row, 1]] <- 4
+    }
+  }
+  return(dummy_data)
+}
+
+## Code the categorical variables
+code_conditions <- function(data) {
+  dummy_data <- data
+  for(row in 1:nrow(data)){
+    if(dummy_data[[row, 5]] == 'original') {
+      dummy_data[[row, 5]] <- 0
+    } else if (dummy_data[[row, 5]] == 'forced'){
+      dummy_data[[row, 5]] <- 1
+    } else if (dummy_data[[row, 5]] == 'together'){
+      dummy_data[[row, 5]] <- 2
+    }
+  }
+  return(dummy_data)
+}
+
+u_dummy <- code_metaphors(total_unpolite)
+u_dummy <- code_conditions(u_dummy)
+
+a_dummy <- code_metaphors(total_audience)
+a_dummy <- code_conditions(a_dummy)
+
+e_dummy <- code_metaphors(total_entity)
+e_dummy <- code_conditions(e_dummy)
+
+u_control <- lm(condition ~ metaphor_measure * normalized_score, data=u_dummy)
+summary(u_control)
+
+## almost certain this is correct
+u_t <- lm(normalized_scores ~ metaphor_measure:condition, data=filter(total_unpolite, metaphor_measure=='conflict'))
+summary(u_t)
+
+a_t <- lm(normalized_scores ~ metaphor_measure:condition, data=a_dummy)
+summary(a_t)
+
+e_t <- lm(normalized_scores ~ metaphor_measure:condition, data=e_dummy)
+summary(e_t)
 ```
 
 Basically the answer is... not much. But we can try for all of the different conditions.
@@ -349,6 +544,28 @@ generate_anovas(total_entity)
 ```
 
 
+### Ordinal Models
+We need to factor things often.
+```{r}
+factor_normalized_scores <- function(data) {
+  factored <- data
+  factored$normalized_scores <- factor(factored$normalized_scores)
+  return(factored)
+}
+```
+
+Now try doing ordinal ranked response analysis
+```{r}
+t <- total_unpolite
+t$normalized_scores <- factor(t$normalized_scores)
+t <- factor_normalized_scores(total_unpolite)
+
+factored_unpolite <- factor_normalized_scores(total_unpolite)
+ordinal_mod <- clm(condition ~ metaphor_measure * normalized_scores, data=t)
+ordinal_mod_no_cond <- clm(num_ranking ~ metaphor_measure * condition - condition, data=factor_normalized_score(total_unpolite))
+anova(ordinal_mod, ordinal_mod_no_cond)
+summary(ordinal_mod)
+```
 
 ### Bootstrapping the ~Data~
 Now let's try bootstrapping this bad boy
@@ -361,7 +578,6 @@ generate_bootstrapped_data <- function(data, n) {
   return(generated_data)
 }
 ```
-
 
 Perhaps fortunately, perhaps not, this brings significance values wayyyyy up. Let's compare:
 ```{r}
@@ -384,7 +600,7 @@ generate_anovas(entity_bootstrapped)
 
 
 
-### Show Me What Matters
+## Show Me What Matters
 Fine, I will. 
 
 ```{r}
@@ -456,29 +672,6 @@ plot_the_thing(total_entity)
 ```
 
 
-## Power Analysis
-```{r}
-get_avg_participants_per_condition <- function(data1, data2, data3) {
-  return(mean(c(mean(data1$Total), mean(data2$Total), mean(data3$Total))))
-}
-```
-
-pwr.anova.test(k = , n = , f = , sig.level = , power = )
-where k is the number of groups and n is the common sample size in each group.
-For a one-way ANOVA effect size is measured by f where
-Cohen suggests that f values of 0.1, 0.25, and 0.4 represent small, medium, and large effect sizes respectively.
-
-Right now we have powers of:
-```{r}
-print("audience:")
-pwr.anova.test(k=3, n=get_avg_participants_per_condition(aao, aas, aaop), sig.level=0.05, f=0.25)
-print("entity:")
-pwr.anova.test(k=3, n=get_avg_participants_per_condition(eo, es, ec), sig.level=0.05, f=0.25)
-print("unpolite:")
-pwr.anova.test(k=3, n=get_avg_participants_per_condition(uo, uf, ut), sig.level=0.05, f=0.25)
-```
-
-
 ### Other Exploratory Analyses
 #### 1. Just look at top three metaphors for each condition
 ```{r}
@@ -492,27 +685,6 @@ compare <- function(orig, manip1, manip2) {
 ```
 
 #### 2. Look at variances of metaphors for each condition
-we can do this by just adding the variance to each of our original datasets
-```{r}
-# playing with some graphs
-ggplot(total_unpolite, aes(x=normalized_score, y=metaphor_variance, 
-                           shape=condition, 
-                           color=condition,
-                           size=condition)) +
-  geom_point()
-
-ggplot(total_audience, aes(x=normalized_score, y=metaphor_variance, 
-                           shape=condition, 
-                           color=condition,
-                           size=condition)) +
-  geom_point()
-
-ggplot(total_entity, aes(x=normalized_score, y=metaphor_variance, 
-                           shape=condition, 
-                           color=condition,
-                           size=condition)) +
-  geom_point()
-```
 Looks like there's really not much to it. Weak correlation at best.
 Checking the rsq:
 ```{r}
@@ -570,111 +742,154 @@ Need to manipulate data to reconstruct participant rankings
 ** Dummy code one group at a time to see effects of only one group**?
 Turn ranking into scores
 
-then filter by group
-make “gesture condition” be deciding thing (‘female’ in example)
-measure effect of gesture on group score
 
-## Plot by density of metaphor answers
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###### Christoph's Help
+I want to know the effect of the condition on the scores by metaphor
+
+1. Mean center the conditions (and measures?) to determine main effects
+2. Dummy code by condition to determine simple effects of each condition
+   on each measure.
 ```{r}
-conflict_data <- total_unpolite %>%
-  filter(metaphor_measure == 'conflict')
+## Mean centering total_unpolite
+# a1 = original
+# a2 = forced
+# a3 = together
 
-plot_the_density <- function(data) {
-  ggplot(data, aes(x=metaphor_measure, fill=condition)) + 
-      geom_density() + 
-      facet_wrap(~metaphor_measure, scale="free")
-}
+# b1 = closeness
+# b2 = size
+# b3 = conflict
+# b4 = open
+# b5 = control
+total_unpolite$a1a2 <- scale(ifelse(total_unpolite$condition=="forced", 1, 0), center=TRUE, scale=FALSE)
+total_unpolite$a1a3 <- scale(ifelse(total_unpolite$condition=="together", 1, 0), center=TRUE, scale=FALSE)
+total_unpolite$dummy_original <- ifelse(total_unpolite$condition=="original", 1, 0)
+total_unpolite$dummy_forced <- ifelse(total_unpolite$condition=="forced", 1, 0)
+total_unpolite$dummy_together <- ifelse(total_unpolite$condition=="together", 1, 0)
 
-plot_the_density(conflict_data)
-```
-I want to make a graph that shows that the number of people who ranked a 
-particular phrase as #1 is higher in density when we used a metaphor
-that we wanted to envoke that phrase.
-```{r}
-uo$condition <- "original"
-ut$condition <- "together"
-uf$condition <- "forced"
-t_unpolite <- rbind(uo, uf, ut)
+total_unpolite$b1b2 <- scale(ifelse(total_unpolite$metaphor_measure=="size", 1, 0), center=TRUE, scale=FALSE)
+total_unpolite$b1b3 <- scale(ifelse(total_unpolite$metaphor_measure=="conflict", 1, 0), center=TRUE, scale=FALSE)
+total_unpolite$b1b4 <- scale(ifelse(total_unpolite$metaphor_measure=="open", 1, 0), center=TRUE, scale=FALSE)
+total_unpolite$b1b5 <- scale(ifelse(total_unpolite$metaphor_measure=="control", 1, 0), center=TRUE, scale=FALSE)
 
-ggplot(t_unpolite, aes(x=metaphor_measure, y=normalized_score, fill=condition)) + 
-    geom_bar(stat="identity", position="dodge") + 
-    facet_wrap(~metaphor_measure, scale="free")
-# cool, don't touch this. This plots the means, nifty! This is the overall scores. 
-# However, even more interesting than that is the densities of rankings
-```
+orig_mod <- lm(normalized_scores ~ a1a2 + a1a3 + b1b2 + b1b3 + b1b4 + b1b5 +
+                                  a1a2:b1b2 + a1a2:b1b3 + a1a2:b1b4 + a1a2:b1b5 +
+                                  a1a3:b1b2 + a1a3:b1b3 + a1a3:b1b4 + a1a3:b1b5, data=total_unpolite)
+summary(orig_mod)
 
-Transform data to ranking so X1=1, X2=2, etc
-```{r}
-t_uo <- gather(uo, "ranking", "num_ranking", 2:11) 
-t_uo$ranking <- as.numeric(gsub("[^0-9]", "", t_uo$ranking))
-t_uf <- gather(uf, "ranking", "num_ranking", 2:11)
-t_uf$ranking <- as.numeric(gsub("[^0-9]", "", t_uf$ranking))
-t_ut <- gather(ut, "ranking", "num_ranking", 2:11)
-t_ut$ranking <- as.numeric(gsub("[^0-9]", "", t_ut$ranking))
-t_utotal <- rbind(t_uo, t_uf, t_ut)
+orig_mod_no_a1 <- lm(normalized_scores ~ b1b2 + b1b3 + b1b4 + b1b5 +
+                                  a1a2:b1b2 + a1a2:b1b3 + a1a2:b1b4 + a1a2:b1b5 +
+                                  a1a3:b1b2 + a1a3:b1b3 + a1a3:b1b4 + a1a3:b1b5, data=total_unpolite)
+summary(orig_mod_no_a1)
+anova(orig_mod, orig_mod_no_a1)
 
-t_utotal_select <- select(t_utotal, metaphor_measure, condition, ranking, num_ranking)
+forced_mod <- lm(normalized_scores ~ a1a2 + a1a3 + b1b2 + b1b3 + b1b4 + b1b5 +
+                                  a1a2:b1b2 + a1a2:b1b3 + a1a2:b1b4 + a1a2:b1b5 +
+                                  a1a3:b1b2 + a1a3:b1b3 + a1a3:b1b4 + a1a3:b1b5, data=total_unpolite)
+summary(forced_mod)
 
-# WAIT SOMEHOW THIS IS PERFECT OH GOD
-ggplot(t_utotal_select, aes(x=ranking, y=num_ranking, fill=condition)) + 
-    geom_density(alpha=0.3, stat="identity") + 
-    facet_wrap(~metaphor_measure, scale="free")
-DO_NOT_DELETE <- t_utotal_select
+together_mod <- lm(normalized_scores ~ a1a2 + a1a3 + b1b2 + b1b3 + b1b4 + b1b5 +
+                                  a1a2:b1b2 + a1a2:b1b3 + a1a2:b1b4 + a1a2:b1b5 +
+                                  a1a3:b1b2 + a1a3:b1b3 + a1a3:b1b4 + a1a3:b1b5, data=total_unpolite)
+summary(together_mod)
 
-# to do a density plot we have to change our data to have num_ranking rows of each 
-# example of ranking
-# fuck it let's make a new dataframe baby
-make_new_data <- function(data) {
-  new_data <- data.frame()
-  for(row in 1:nrow(data)) {
-    for(j in 1:data[[row,4]]) {
-      new_data <- rbind(new_data, data[row,])
+
+# dummy coding each thing
+forced_mod <- lm(normalized_scores ~ dummy_forced * metaphor_measure, data=total_unpolite)
+summary(forced_mod)
+together_mod <- lm(normalized_scores ~ dummy_together * metaphor_measure, data=total_unpolite)
+summary(together_mod)
+orig_mod <- lm(normalized_scores ~ dummy_original * metaphor_measure, data=total_unpolite)
+summary(orig_mod)
+
+## Code the categorical variables
+code_metaphors <- function(data) {
+  dummy_data <- data
+  for(row in 1:nrow(data)){
+    if(dummy_data[[row, 1]] == 'closeness') {
+      dummy_data[[row, 1]] <- 0
+    } else if (dummy_data[[row, 1]] == 'control'){
+      dummy_data[[row, 1]] <- 1
+    } else if (dummy_data[[row, 1]] == 'size'){
+      dummy_data[[row, 1]] <- 2
+    } else if (dummy_data[[row, 1]] == 'open'){
+      dummy_data[[row, 1]] <- 3
+    } else if (dummy_data[[row, 1]] == 'conflict'){
+      dummy_data[[row, 1]] <- 4
     }
   }
-  return(new_data)
+  return(dummy_data)
 }
-x <- make_new_data(t_utotal_select)
 
-## test with just one condition
-ggplot(filter(x, metaphor_measure == "conflict"), aes(x=ranking, fill=condition)) +
-  geom_histogram(position="dodge", binwidth=1) + 
-  geom_density(alpha=0.3)
+## Code the categorical variables
+code_conditions <- function(data) {
+  dummy_data <- data
+  for(row in 1:nrow(data)){
+    if(dummy_data[[row, 5]] == 'original') {
+      dummy_data[[row, 5]] <- 0
+    } else if (dummy_data[[row, 5]] == 'forced'){
+      dummy_data[[row, 5]] <- 1
+    } else if (dummy_data[[row, 5]] == 'together'){
+      dummy_data[[row, 5]] <- 2
+    }
+  }
+  return(dummy_data)
+}
 
+u_dummy <- code_metaphors(total_unpolite)
+u_dummy <- code_conditions(u_dummy)
 
-ggplot(x, aes(x=ranking, fill=condition)) + 
-  geom_histogram(position="dodge", binwidth = 1) +
-  facet_wrap(~metaphor_measure, scale="free")
+a_dummy <- code_metaphors(total_audience)
+a_dummy <- code_conditions(a_dummy)
 
+e_dummy <- code_metaphors(total_entity)
+e_dummy <- code_conditions(e_dummy)
 
-ggplot(x, aes(x=ranking, y=num_ranking, fill=condition)) +
-  geom_histogram(alpha=0.3, stat="identity", position="dodge") +
-  facet_wrap(~metaphor_measure, scale="free")
+u_control <- lm(condition ~ metaphor_measure * normalized_score, data=u_dummy)
+summary(u_control)
 
+## almost certain this is correct
+u_t <- lm(normalized_scores ~ metaphor_measure:condition, data=filter(total_unpolite, metaphor_measure=='conflict'))
+summary(u_t)
 
+a_t <- lm(normalized_scores ~ metaphor_measure:condition, data=a_dummy)
+summary(a_t)
 
-
-ggplot(t_utotal_select, aes(x=ranking, y=num_ranking, fill=condition)) + 
-    geom_bar(stat="identity", position="dodge") + 
-    facet_wrap(~metaphor_measure, scale="free")
-
-ggplot(t_utotal_select, aes(x=ranking, y=num_ranking, fill=condition)) + 
-    geom_box(stat="identity", alpha=0.3) + 
-    facet_wrap(~metaphor_measure, scale="free")
+e_t <- lm(normalized_scores ~ metaphor_measure:condition, data=e_dummy)
+summary(e_t)
 ```
-See this actually looks quite nice and appropriately visualizes how the different densities of responses fit in
 
-Now try doing ordinal ranked response analysis
+
+Wilcox signed rank compare each gesture to original for each condition
 ```{r}
-t_utotal_select$num_ranking <- factor(t_utotal_select$num_ranking)
-ordinal_mod <- clm(num_ranking ~ metaphor_measure * condition, data=t_utotal_select)
-ordinal_mod_no_cond <- clm(num_ranking ~ metaphor_measure * condition - condition, data=t_utotal_select)
-anova(ordinal_mod, ordinal_mod)
-summary(ordinal.mod)
+forced_disagree <- total_unpolite %>%
+  filter(metaphor_measure == "Disagree") %>%
+  filter(condition == "forced")
+
+original_disagree <- total_unpolite %>%
+  filter(metaphor_measure == "Disagree") %>%
+  filter(condition == "original")
+
+res <- wilcox.test(forced_disagree$normalized_scores, original_disagree$normalized_scores)
+res
+
+ttest<- t.test(forced_disagree$normalized_scores, original_disagree$normalized_scores)
+ttest
 ```
-
-
-
-
 
 
 
