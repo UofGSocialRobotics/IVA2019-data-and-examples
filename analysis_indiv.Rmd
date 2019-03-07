@@ -1,3 +1,10 @@
+---
+title: "IVA2019 Analysis -- Individual Responses"
+author: "--"
+date: "2/21/2019"
+output: html_document
+---
+
 ```{r}
 library(dplyr)
 library(ggplot2)
@@ -243,7 +250,7 @@ u_forced_diff_plot
 ```
 
 ```{r}
-u_together_diff_plot <- create_difference_matrix(ut_indiv) %>%
+u_together_diff_plot <- create_difference_matrix(ut_indiv, unpolite_metas) %>%
   plot_diff_matrix_blue("Together")
 
 u_together_diff_plot
