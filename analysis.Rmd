@@ -200,8 +200,8 @@ uo <- transform_data(uo)
 uf <- transform_data(uf)
 ut <- transform_data(ut)
 uo$condition <- "original"
-uf$condition <- "forced"
-ut$condition <- "together"
+uf$condition <- "collide"
+ut$condition <- "intertwine"
 ```
 
 
@@ -235,8 +235,8 @@ entity_summary <- summarise_gesture(eo,
                                 ec, "chest")
                                 
 unpolite_summary <- summarise_gesture(uo, 
-                                ut, "together",
-                                uf, "force")
+                                ut, "intertwine",
+                                uf, "collide")
 ```
 
 
@@ -352,7 +352,7 @@ make_density_plot_scaled <- function(data1, data2, data3) {
 ```{r}
 unpolite_density <- make_density_plot(uo, uf, ut)
 unpolite_density_scaled <- make_density_plot_scaled(uo, uf, ut)
-# unpolite_density
+unpolite_density
 unpolite_density_scaled
 ```
 
@@ -408,6 +408,44 @@ entity_range
 ```
 
 Great, that gives a better picture of everything together
+
+
+### Playing with Violin plots
+```{r}
+## not quite..
+ggplot(total_unpolite, aes(condition, normalized_scores)) + 
+  geom_violin(aes(fill = condition)) +
+  facet_wrap(~metaphor_measure, scale="free")
+
+
+u_dense_data <- make_density_data(pull_rankings(uo, uf, ut))
+
+u_orig_dense <- u_dense_data %>%
+  filter(condition == "original")
+u_col_dense <- u_dense_data %>%
+  filter(condition == "collide")
+u_intertwine_dense <- u_dense_data %>%
+  filter(condition == "intertwine")
+
+ggplot(u_dense_data, aes(condition, ranking)) + 
+  geom_violin(aes(fill=condition, alpha=0.5), scale="count", draw_quantiles = c(0.25, 0.5, 0.75)) +
+  #geom_dotplot(aes(color=condition), binaxis='y', stackdir='center', dotsize=0.5) +
+  facet_wrap(~metaphor_measure) + 
+  labs(
+    title = "Violin plot (density) of ranked responses per condition by metaphor"   ,
+    caption = "Horizontal lines are drawn at the 0.25, 0.5, and 0.75 quantiles of the distribution."
+  )
+
+
+## Yeah baby. 
+```
+Horizontal lines are drawn at the 0.25, 0.5, and 0.75 quantiles of response distribution.
+
+
+A human-readable way to interpret this is, for example, for the Tension metaphor in the collide
+condition, 25% of people ranked 'Tension' as number 1, 50% of people ranked 'Tension' as 1 or 2, 
+75% of people ranked 'Tension' as at least 6.
+
 
 
 ## Stats on Stats on Stats
